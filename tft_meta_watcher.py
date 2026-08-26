@@ -805,139 +805,15 @@ def analyze_changes(current_data: dict, prev_state: dict) -> list[dict]:
                     "priority": "high",
                 })
 
-    # 4. AD템 대체덱보다 좋은 덱 감지
-    ad_alt_stats_list = list(watched_stats["ad_alt"].values())
-    if ad_alt_stats_list:
-        best_ad_top4 = max(s["top4_rate"] for s in ad_alt_stats_list)
-        best_ad_avg = min(s["avg_placement"] for s in ad_alt_stats_list if s["avg_placement"] > 0) if any(s["avg_placement"] > 0 for s in ad_alt_stats_list) else 99
+    # 4~8: 나머지 덱 변동은 요약 리포트에서 확인 가능하므로 별도 알림 안 함
+    # (TOP 3 진입, 신규 강력덱, AD덱 후보, 이즈리얼 컨디션 등)
 
-        for s in all_stats:
-            if s["name"] in [e["label"] for e in WATCHED_DECKS["ad_alt"]]:
-                continue
-            if s["name"] in [e["label"] for e in WATCHED_DECKS["main"]]:
-                continue
-            # AD템 덱보다 순방률과 평균등수 모두 좋은 경우
-            if s["top4_rate"] > best_ad_top4 and s["avg_placement"] < best_ad_avg and s["avg_placement"] > 0:
-                if s["name"] not in prev_decks_stats.get("_reported_better_ad", []):
-                    alerts.append({
-                        "type": "better_ad_deck",
-                        "title": "🆕 기존 AD덱보다 좋은 덱 등장",
-                        "message": (
-                            f"**{s['name']}**\n"
-                            f"순방률 **{s['top4_rate']:.2f}%** (기존 AD덱 최고: {best_ad_top4:.2f}%)\n"
-                            f"평균등수 **{s['avg_placement']:.2f}등** (기존: {best_ad_avg:.2f}등)\n"
-                            f"판수: {s['play_count']:,}판"
-                        ),
-                        "priority": "medium",
-                    })
-
-    # 5. 시간 균열자 이즈리얼 체크
-    ez_stats = watched_stats["special"].get("시간 균열자 이즈리얼")
-    if ez_stats:
-        if ez_stats["top4_rate"] >= 50.0 or (ez_stats["avg_placement"] > 0 and ez_stats["avg_placement"] <= 4.35):
-            prev_ez = prev_decks_stats.get("시간 균열자 이즈리얼", {})
-            prev_good = (prev_ez.get("top4_rate", 0) >= 50.0 or
-                         (0 < prev_ez.get("avg_placement", 99) <= 4.35))
-            if not prev_good:
-                alerts.append({
-                    "type": "special_deck_good",
-                    "title": "✅ 이즈리얼 지금 쓸만함",
-                    "message": (
-                        f"**시간 균열자 이즈리얼** 쓸 만한 구간에 들어왔어요\n"
-                        f"순방률 **{ez_stats['top4_rate']:.2f}%** | 평균등수 **{ez_stats['avg_placement']:.2f}등**\n"
-                        f"판수: {ez_stats['play_count']:,}판"
-                    ),
-                    "priority": "medium",
-                })
-
-    # 6. 순방률/평균등수 top 3 진입 신규 덱
-    prev_top3_top4 = set(prev_state.get("top3_top4_names", []))
-    prev_top3_avg = set(prev_state.get("top3_avg_names", []))
-
-    current_top3_top4 = [s["name"] for s in by_top4[:3]]
-    current_top3_avg = [s["name"] for s in by_avg[:3]]
-
-    new_top3_top4 = set(current_top3_top4) - prev_top3_top4
-    new_top3_avg = set(current_top3_avg) - prev_top3_avg
-
-    if prev_top3_top4 and new_top3_top4:
-        for name in new_top3_top4:
-            s = next((x for x in all_stats if x["name"] == name), None)
-            if s:
-                alerts.append({
-                    "type": "new_top3",
-                    "title": "🏆 순방률 TOP 3에 새 덱 진입",
-                    "message": (
-                        f"**{s['name']}**이 순방률 TOP 3에 올라왔어요\n"
-                        f"순방률 **{s['top4_rate']:.2f}%** | 평균등수 **{s['avg_placement']:.2f}등**\n"
-                        f"판수: {s['play_count']:,}판"
-                    ),
-                    "priority": "medium",
-                })
-
-    if prev_top3_avg and new_top3_avg:
-        for name in new_top3_avg:
-            s = next((x for x in all_stats if x["name"] == name), None)
-            if s:
-                alerts.append({
-                    "type": "new_top3",
-                    "title": "🏆 평균등수 TOP 3에 새 덱 진입",
-                    "message": (
-                        f"**{s['name']}**이 평균등수 TOP 3에 올라왔어요\n"
-                        f"평균등수 **{s['avg_placement']:.2f}등** | 순방률 **{s['top4_rate']:.2f}%**\n"
-                        f"판수: {s['play_count']:,}판"
-                    ),
-                    "priority": "medium",
-                })
-
-    # 7. 새로운 강력 덱 감지 (표본 5000+, 순방률 56%+)
-    for s in all_stats:
-        if s["play_count"] >= 5000 and s["top4_rate"] >= 56.0:
-            if s["name"] not in prev_decks_stats:
-                alerts.append({
-                    "type": "new_strong_deck",
-                    "title": "💎 성적 좋은 새 덱 발견",
-                    "message": (
-                        f"**{s['name']}** — 표본 충분하고 순방률 높아요\n"
-                        f"순방률 **{s['top4_rate']:.2f}%** | 평균등수 **{s['avg_placement']:.2f}등**\n"
-                        f"판수: {s['play_count']:,}판"
-                    ),
-                    "priority": "high",
-                })
-
-    # 8. 기존 추천덱보다 좋은 새 리롤덱
+    # 9. 감시 대상 덱 목록에서 사라진 경우
     watched_labels = set()
     for entries in WATCHED_DECKS.values():
         for e in entries:
             watched_labels.add(e["label"])
 
-    best_watched_top4 = 0
-    best_watched_avg = 99.0
-    for label in watched_labels:
-        ws = prev_decks_stats.get(label, {})
-        if ws:
-            best_watched_top4 = max(best_watched_top4, ws.get("top4_rate", 0))
-            if ws.get("avg_placement", 0) > 0:
-                best_watched_avg = min(best_watched_avg, ws.get("avg_placement", 99))
-
-    if best_watched_top4 > 0:
-        for s in all_stats:
-            if s["name"] in watched_labels:
-                continue
-            if s["name"] not in prev_decks_stats and s["top4_rate"] > best_watched_top4 and 0 < s["avg_placement"] < best_watched_avg:
-                alerts.append({
-                    "type": "new_reroll_deck",
-                    "title": "🔥 지금 쓰는 덱보다 좋은 덱 나옴",
-                    "message": (
-                        f"**{s['name']}** — 기존 추천덱보다 성적이 좋아요\n"
-                        f"순방률 **{s['top4_rate']:.2f}%** (내 덱 최고: {best_watched_top4:.2f}%)\n"
-                        f"평균등수 **{s['avg_placement']:.2f}등** (내 덱 최고: {best_watched_avg:.2f}등)\n"
-                        f"판수: {s['play_count']:,}판"
-                    ),
-                    "priority": "high",
-                })
-
-    # 9. 감시 대상 덱 목록에서 사라진 경우
     for label in watched_labels:
         if label in prev_decks_stats and label not in {s["name"] for s in all_stats}:
             # 키워드 재매칭으로도 못 찾으면 사라진 것
@@ -957,20 +833,7 @@ def analyze_changes(current_data: dict, prev_state: dict) -> list[dict]:
                     "priority": "high",
                 })
 
-    # 10. 평균등수 4.15 이하 신규 덱
-    for s in all_stats:
-        if s["avg_placement"] > 0 and s["avg_placement"] <= 4.15:
-            if s["name"] not in prev_decks_stats:
-                alerts.append({
-                    "type": "low_avg_deck",
-                    "title": "📈 등수 잘 나오는 새 덱 발견",
-                    "message": (
-                        f"**{s['name']}** — 평균등수가 높아요\n"
-                        f"평균등수 **{s['avg_placement']:.2f}등** | 순방률 **{s['top4_rate']:.2f}%**\n"
-                        f"판수: {s['play_count']:,}판"
-                    ),
-                    "priority": "medium",
-                })
+    # 10. 평균등수 4.15 이하 신규 덱 — 요약 리포트에서 확인 가능하므로 별도 알림 안 함
 
     return alerts
 
@@ -1585,8 +1448,8 @@ def main():
                     alert["deck_url"] = _find_deck_url(match.group(1), decks)
             embeds.append(build_alert_embed(alert))
 
-    # 첫 실행, force-alert, 패치 직후 집중모드면 항상 현황 요약 전송
-    if not prev_state or args.force_alert or alerts or is_post_patch:
+    # 첫 실행, force-alert, 패치 직후, 중요 알림 있을 때만 요약 전송
+    if not prev_state or args.force_alert or is_post_patch or alerts:
         summary_embeds = build_summary_embeds(meta_info, all_stats, watched_stats, decks)
         if is_post_patch and summary_embeds:
             summary_embeds[0]["title"] = "📋 TFT 메타 리포트 [🔥 패치 직후 집중 감시]"
