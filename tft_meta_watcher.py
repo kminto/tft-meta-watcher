@@ -227,11 +227,11 @@ def check_patch_day_alert(schedules: list[dict], prev_state: dict) -> list[dict]
             emoji = "🔥" if is_hotfix else "🚨"
             alerts.append({
                 "type": "patch_today",
-                "title": f"{emoji} 오늘 패치 적용일!",
+                "title": f"{emoji} 오늘 패치 날!",
                 "message": (
-                    f"**패치 {patch_label}** 이 오늘({today}) 적용됩니다.\n"
-                    f"패치 후 메타 변동이 클 수 있으니 랭크 진입에 주의하세요.\n"
-                    f"패치 적용 후 덱 데이터가 리셋되며, 집중 감시 모드가 활성화됩니다.\n"
+                    f"**패치 {patch_label}** 오늘({today}) 적용돼요.\n"
+                    f"패치 후 메타 흔들릴 수 있으니 랭크 조심하세요.\n"
+                    f"적용 후 데이터 리셋 + 집중 감시 자동 시작됩니다.\n"
                     f"상세: {sched.get('raw', '')}"
                 ),
                 "priority": "high",
@@ -239,10 +239,10 @@ def check_patch_day_alert(schedules: list[dict], prev_state: dict) -> list[dict]
         elif patch_date == tomorrow and patch_date not in already_notified:
             alerts.append({
                 "type": "patch_tomorrow",
-                "title": "📅 내일 패치 예정",
+                "title": "📅 내일 패치 있음",
                 "message": (
-                    f"**패치 {patch_label}** 이 내일({tomorrow}) 적용 예정입니다.\n"
-                    f"오늘 중으로 LP 관리를 마무리하세요.\n"
+                    f"**패치 {patch_label}** 내일({tomorrow}) 적용 예정이에요.\n"
+                    f"오늘 안에 LP 정리하세요.\n"
                     f"상세: {sched.get('raw', '')}"
                 ),
                 "priority": "medium",
@@ -574,12 +574,12 @@ def analyze_changes(current_data: dict, prev_state: dict) -> list[dict]:
     if prev_meta.get("patch") and meta_info["patch"] != prev_meta["patch"]:
         alerts.append({
             "type": "patch_change",
-            "title": "🚨 패치 변경 감지 — 집중 감시 모드 활성화",
+            "title": "🚨 새 패치 적용됨 — 집중 감시 시작",
             "message": (
                 f"**{prev_meta['patch']}** → **{meta_info['patch']}**\n"
-                f"패치 직후 메타가 불안정합니다. 향후 6시간 동안 집중 감시합니다.\n"
-                f"모든 덱 데이터가 리셋되었으므로 기존 수치와 비교가 불가능합니다.\n"
-                f"⚠️ 패치 직후에는 표본이 적어 수치가 왜곡될 수 있으니 참고만 하세요."
+                f"패치 직후라 메타가 흔들릴 수 있어요. 6시간 동안 집중 감시합니다.\n"
+                f"덱 데이터가 리셋돼서 이전 수치랑 비교가 안 됩니다.\n"
+                f"⚠️ 표본이 적을 수 있으니 참고만 하세요."
             ),
             "priority": "high",
         })
@@ -588,8 +588,8 @@ def analyze_changes(current_data: dict, prev_state: dict) -> list[dict]:
     if prev_meta.get("updatedAt") and meta_info["updatedAt"] != prev_meta["updatedAt"]:
         alerts.append({
             "type": "data_update",
-            "title": "📊 롤체지지 데이터 업데이트",
-            "message": f"업데이트 시각: {meta_info['updatedAt']}",
+            "title": "📊 롤체지지 데이터 갱신됨",
+            "message": f"최신 데이터 반영 시각: {meta_info['updatedAt']}",
             "priority": "info",
         })
 
@@ -623,10 +623,10 @@ def analyze_changes(current_data: dict, prev_state: dict) -> list[dict]:
             if top4_diff <= -2.0:
                 alerts.append({
                     "type": "main_deck_warning",
-                    "title": "⚠️ 메인덱 순방률 하락",
+                    "title": "⚠️ 메인덱 순방률 떨어짐",
                     "message": (
-                        f"**별돌보미 룰루** 순방률 {top4_diff:+.2f}%p\n"
-                        f"순방률: {prev_lulu.get('top4_rate', 0):.2f}% → {lulu_stats['top4_rate']:.2f}%\n"
+                        f"**별돌보미 룰루** 순방률이 {abs(top4_diff):.2f}%p 빠졌어요\n"
+                        f"{prev_lulu.get('top4_rate', 0):.2f}% → **{lulu_stats['top4_rate']:.2f}%**\n"
                         f"평균등수: {lulu_stats['avg_placement']:.2f}"
                     ),
                     "priority": "high",
@@ -635,10 +635,10 @@ def analyze_changes(current_data: dict, prev_state: dict) -> list[dict]:
             if avg_diff >= 0.15:
                 alerts.append({
                     "type": "main_deck_warning",
-                    "title": "⚠️ 메인덱 평균등수 하락",
+                    "title": "⚠️ 메인덱 등수 밀림",
                     "message": (
-                        f"**별돌보미 룰루** 평균등수 {avg_diff:+.2f}\n"
-                        f"평균등수: {prev_lulu.get('avg_placement', 0):.2f} → {lulu_stats['avg_placement']:.2f}\n"
+                        f"**별돌보미 룰루** 평균등수가 {avg_diff:.2f} 밀렸어요\n"
+                        f"{prev_lulu.get('avg_placement', 0):.2f}등 → **{lulu_stats['avg_placement']:.2f}등**\n"
                         f"순방률: {lulu_stats['top4_rate']:.2f}%"
                     ),
                     "priority": "high",
@@ -660,12 +660,12 @@ def analyze_changes(current_data: dict, prev_state: dict) -> list[dict]:
                 if s["name"] not in prev_decks_stats.get("_reported_better_ad", []):
                     alerts.append({
                         "type": "better_ad_deck",
-                        "title": "🆕 AD템 대체덱 후보 발견",
+                        "title": "🆕 기존 AD덱보다 좋은 덱 등장",
                         "message": (
                             f"**{s['name']}**\n"
-                            f"순방률: {s['top4_rate']:.2f}% (기존 최고: {best_ad_top4:.2f}%)\n"
-                            f"평균등수: {s['avg_placement']:.2f} (기존 최고: {best_ad_avg:.2f})\n"
-                            f"게임 수: {s['play_count']:,}"
+                            f"순방률 **{s['top4_rate']:.2f}%** (기존 AD덱 최고: {best_ad_top4:.2f}%)\n"
+                            f"평균등수 **{s['avg_placement']:.2f}등** (기존: {best_ad_avg:.2f}등)\n"
+                            f"판수: {s['play_count']:,}판"
                         ),
                         "priority": "medium",
                     })
@@ -680,12 +680,11 @@ def analyze_changes(current_data: dict, prev_state: dict) -> list[dict]:
             if not prev_good:
                 alerts.append({
                     "type": "special_deck_good",
-                    "title": "✅ 특수덱 컨디션 좋음",
+                    "title": "✅ 이즈리얼 지금 쓸만함",
                     "message": (
-                        f"**시간 균열자 이즈리얼** 사용 가능 구간 진입\n"
-                        f"순방률: {ez_stats['top4_rate']:.2f}%\n"
-                        f"평균등수: {ez_stats['avg_placement']:.2f}\n"
-                        f"게임 수: {ez_stats['play_count']:,}"
+                        f"**시간 균열자 이즈리얼** 쓸 만한 구간에 들어왔어요\n"
+                        f"순방률 **{ez_stats['top4_rate']:.2f}%** | 평균등수 **{ez_stats['avg_placement']:.2f}등**\n"
+                        f"판수: {ez_stats['play_count']:,}판"
                     ),
                     "priority": "medium",
                 })
@@ -706,12 +705,11 @@ def analyze_changes(current_data: dict, prev_state: dict) -> list[dict]:
             if s:
                 alerts.append({
                     "type": "new_top3",
-                    "title": "🏆 순방률 TOP 3 신규 진입",
+                    "title": "🏆 순방률 TOP 3에 새 덱 진입",
                     "message": (
-                        f"**{s['name']}**\n"
-                        f"순방률: {s['top4_rate']:.2f}%\n"
-                        f"평균등수: {s['avg_placement']:.2f}\n"
-                        f"게임 수: {s['play_count']:,}"
+                        f"**{s['name']}**이 순방률 TOP 3에 올라왔어요\n"
+                        f"순방률 **{s['top4_rate']:.2f}%** | 평균등수 **{s['avg_placement']:.2f}등**\n"
+                        f"판수: {s['play_count']:,}판"
                     ),
                     "priority": "medium",
                 })
@@ -722,12 +720,11 @@ def analyze_changes(current_data: dict, prev_state: dict) -> list[dict]:
             if s:
                 alerts.append({
                     "type": "new_top3",
-                    "title": "🏆 평균등수 TOP 3 신규 진입",
+                    "title": "🏆 평균등수 TOP 3에 새 덱 진입",
                     "message": (
-                        f"**{s['name']}**\n"
-                        f"평균등수: {s['avg_placement']:.2f}\n"
-                        f"순방률: {s['top4_rate']:.2f}%\n"
-                        f"게임 수: {s['play_count']:,}"
+                        f"**{s['name']}**이 평균등수 TOP 3에 올라왔어요\n"
+                        f"평균등수 **{s['avg_placement']:.2f}등** | 순방률 **{s['top4_rate']:.2f}%**\n"
+                        f"판수: {s['play_count']:,}판"
                     ),
                     "priority": "medium",
                 })
@@ -738,11 +735,11 @@ def analyze_changes(current_data: dict, prev_state: dict) -> list[dict]:
             if s["name"] not in prev_decks_stats:
                 alerts.append({
                     "type": "new_strong_deck",
-                    "title": "💎 신규 강력 덱 감지",
+                    "title": "💎 성적 좋은 새 덱 발견",
                     "message": (
-                        f"**{s['name']}**\n"
-                        f"순방률: {s['top4_rate']:.2f}% | 평균등수: {s['avg_placement']:.2f}\n"
-                        f"게임 수: {s['play_count']:,} (충분한 표본)"
+                        f"**{s['name']}** — 표본 충분하고 순방률 높아요\n"
+                        f"순방률 **{s['top4_rate']:.2f}%** | 평균등수 **{s['avg_placement']:.2f}등**\n"
+                        f"판수: {s['play_count']:,}판"
                     ),
                     "priority": "high",
                 })
@@ -769,12 +766,12 @@ def analyze_changes(current_data: dict, prev_state: dict) -> list[dict]:
             if s["name"] not in prev_decks_stats and s["top4_rate"] > best_watched_top4 and 0 < s["avg_placement"] < best_watched_avg:
                 alerts.append({
                     "type": "new_reroll_deck",
-                    "title": "🔥 기존 추천덱보다 좋은 신규 덱",
+                    "title": "🔥 지금 쓰는 덱보다 좋은 덱 나옴",
                     "message": (
-                        f"**{s['name']}**\n"
-                        f"순방률: {s['top4_rate']:.2f}% (기존 최고: {best_watched_top4:.2f}%)\n"
-                        f"평균등수: {s['avg_placement']:.2f} (기존 최고: {best_watched_avg:.2f})\n"
-                        f"게임 수: {s['play_count']:,}"
+                        f"**{s['name']}** — 기존 추천덱보다 성적이 좋아요\n"
+                        f"순방률 **{s['top4_rate']:.2f}%** (내 덱 최고: {best_watched_top4:.2f}%)\n"
+                        f"평균등수 **{s['avg_placement']:.2f}등** (내 덱 최고: {best_watched_avg:.2f}등)\n"
+                        f"판수: {s['play_count']:,}판"
                     ),
                     "priority": "high",
                 })
@@ -794,8 +791,8 @@ def analyze_changes(current_data: dict, prev_state: dict) -> list[dict]:
             if not found:
                 alerts.append({
                     "type": "deck_disappeared",
-                    "title": "❌ 감시 덱 메타 목록에서 제거됨",
-                    "message": f"**{label}**이(가) 롤체지지 메타 목록에서 사라졌습니다.\n해당 덱의 티어가 하락했을 수 있습니다.",
+                    "title": "❌ 감시 덱이 메타에서 빠짐",
+                    "message": f"**{label}**이 롤체지지 메타 목록에서 사라졌어요.\n티어가 많이 떨어졌을 수 있으니 대체덱을 준비하세요.",
                     "priority": "high",
                 })
 
@@ -805,12 +802,11 @@ def analyze_changes(current_data: dict, prev_state: dict) -> list[dict]:
             if s["name"] not in prev_decks_stats:
                 alerts.append({
                     "type": "low_avg_deck",
-                    "title": "📈 낮은 평균등수 신규 덱",
+                    "title": "📈 등수 잘 나오는 새 덱 발견",
                     "message": (
-                        f"**{s['name']}**\n"
-                        f"평균등수: {s['avg_placement']:.2f} (4.15 이하)\n"
-                        f"순방률: {s['top4_rate']:.2f}%\n"
-                        f"게임 수: {s['play_count']:,}"
+                        f"**{s['name']}** — 평균등수가 높아요\n"
+                        f"평균등수 **{s['avg_placement']:.2f}등** | 순방률 **{s['top4_rate']:.2f}%**\n"
+                        f"판수: {s['play_count']:,}판"
                     ),
                     "priority": "medium",
                 })
@@ -831,17 +827,17 @@ def _verdict_bar(rate: float) -> str:
 def _verdict_label(rate: float) -> str:
     """순방률 기준 한글 판정."""
     if rate >= 58:
-        return "🟢 강력 추천"
+        return "🟢 존강"
     elif rate >= 55:
-        return "✅ 유지"
+        return "✅ 쓸만함"
     elif rate >= 52:
-        return "🟡 양호"
+        return "🟡 무난"
     elif rate >= 50:
-        return "⚡ 주의"
+        return "⚡ 애매함"
     elif rate >= 47:
-        return "🟠 위험"
+        return "🟠 별로"
     else:
-        return "🔴 교체 필요"
+        return "🔴 갈아타세요"
 
 
 def _avg_verdict(avg: float) -> str:
@@ -920,13 +916,13 @@ def build_summary_embeds(meta_info: dict, all_stats: list[dict], watched_stats: 
     if not deck_fields:
         deck_fields.append({
             "name": "감시 덱",
-            "value": "매칭된 감시 덱이 없습니다. 키워드를 확인하세요.",
+            "value": "매칭되는 덱이 없어요. 키워드 확인해보세요.",
             "inline": False,
         })
 
     embeds.append({
         "title": "🎯 내 덱 현황",
-        "description": "감시 중인 덱들의 실시간 성능입니다.\n판정 기준: 🟢 58%+ / ✅ 55%+ / 🟡 52%+ / ⚡ 50%+ / 🟠 47%+ / 🔴 47%-",
+        "description": "내가 쓰는 덱들 실시간 성적이에요.\n🟢 존강 58%+ / ✅ 쓸만 55%+ / 🟡 무난 52%+ / ⚡ 애매 50%+ / 🟠 별로 47%+ / 🔴 갈아타 47%-",
         "color": 0x2ECC71,
         "fields": deck_fields,
         "footer": {"text": now_str},
@@ -943,7 +939,7 @@ def build_summary_embeds(meta_info: dict, all_stats: list[dict], watched_stats: 
         )
 
     embeds.append({
-        "title": "🏆 순방률 TOP 5",
+        "title": "🏆 지금 가장 잘 나가는 덱 TOP 5",
         "description": "\n\n".join(top5_lines) if top5_lines else "데이터 없음",
         "color": 0xFFD700,
         "footer": {"text": now_str},
@@ -967,8 +963,8 @@ def build_summary_embeds(meta_info: dict, all_stats: list[dict], watched_stats: 
     embeds.append({
         "title": "🎰 리롤 확률 가이드",
         "description": (
-            "코스트별 최적 리롤 레벨과 필요 골드입니다.\n"
-            "50% = 절반 확률로 1장 뜸 / 80% = 높은 확률로 뜸\n\n"
+            "몇 레벨에서 리롤해야 가장 잘 뜨는지 정리했어요.\n"
+            "50% = 반반 확률로 1장 뜸 / 80% = 거의 뜸\n\n"
             + "\n\n".join(reroll_lines)
         ),
         "color": 0x9B59B6,
@@ -986,23 +982,24 @@ def build_alert_embed(alert: dict) -> dict:
         "info": 0x44AAFF,
     }
     priority_labels = {
-        "high": "🔴 긴급",
-        "medium": "🟡 주의",
+        "high": "🔴 중요",
+        "medium": "🟡 체크",
         "info": "🔵 참고",
     }
 
     # 알림 타입별 액션 가이드 추가
     action_guide = {
-        "patch_change": "→ 1~2일간 랭크 자제 권장. 표본이 쌓일 때까지 관망하세요.",
-        "patch_today": "→ 패치 전 마지막 랭크를 마무리하세요.",
-        "hotfix_detected": "→ 핫픽스 내용을 확인하고 영향받는 덱을 체크하세요.",
-        "main_deck_warning": "→ 대체덱 준비를 고려하세요. AD템덱 또는 특수덱을 확인.",
-        "better_ad_deck": "→ 해당 덱 가이드를 찾아보고 연습해보세요.",
-        "special_deck_good": "→ 상황에 맞으면 이 덱을 적극 활용하세요.",
-        "deck_disappeared": "→ 해당 덱 사용을 즉시 중단하고 대체덱으로 전환하세요.",
-        "new_top3": "→ 이 덱의 가이드를 확인해보세요. 덱 풀에 추가 검토.",
-        "new_strong_deck": "→ 충분한 표본의 강력 덱입니다. 학습을 추천합니다.",
-        "new_reroll_deck": "→ 기존 추천덱보다 좋은 성적입니다. 교체를 검토하세요.",
+        "patch_change": "→ 1~2일 랭크 쉬고 메타 안정되면 돌리세요.",
+        "patch_today": "→ 패치 전에 남은 판 마무리하세요.",
+        "hotfix_detected": "→ 핫픽스 내용 확인하고 영향 받는 덱 체크하세요.",
+        "main_deck_warning": "→ 대체덱 준비해두세요. AD덱이나 특수덱 확인.",
+        "better_ad_deck": "→ 가이드 찾아보고 노말에서 연습해보세요.",
+        "special_deck_good": "→ 상황 맞으면 적극적으로 가져가세요.",
+        "deck_disappeared": "→ 이 덱은 접고 다른 덱으로 갈아타세요.",
+        "new_top3": "→ 가이드 한번 봐두세요. 덱 풀에 넣을지 검토.",
+        "new_strong_deck": "→ 표본도 많고 성적도 좋아요. 배워둘 가치 있음.",
+        "new_reroll_deck": "→ 지금 쓰는 덱보다 좋아요. 갈아탈지 고민해보세요.",
+        "low_avg_deck": "→ 평균등수가 좋은 덱이에요. 체크해보세요.",
     }
 
     action = action_guide.get(alert["type"], "")
@@ -1125,18 +1122,18 @@ def main():
             if is_hotfix:
                 alerts.append({
                     "type": "hotfix_detected",
-                    "title": "🔥 B패치/핫픽스 감지!",
+                    "title": "🔥 B패치/핫픽스 나옴!",
                     "message": (
                         f"**{note['title']}**\n{note['url']}\n\n"
-                        f"핫픽스/B패치가 적용되면 메타가 즉시 변동됩니다.\n"
-                        f"적용 후 집중 감시 모드가 자동 활성화됩니다."
+                        f"적용되면 메타가 바로 바뀔 수 있어요.\n"
+                        f"적용 후 집중 감시가 자동으로 켜집니다."
                     ),
                     "priority": "high",
                 })
             else:
                 alerts.append({
                     "type": "riot_patch_note",
-                    "title": "📰 Riot TFT 패치노트 새 글",
+                    "title": "📰 TFT 패치노트 올라옴",
                     "message": f"**{note['title']}**\n{note['url']}",
                     "priority": "info",
                 })
