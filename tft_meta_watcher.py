@@ -827,17 +827,17 @@ def _verdict_bar(rate: float) -> str:
 def _verdict_label(rate: float) -> str:
     """순방률 기준 한글 판정."""
     if rate >= 58:
-        return "🟢 존강"
+        return "🟢 강력"
     elif rate >= 55:
-        return "✅ 쓸만함"
+        return "✅ 좋음"
     elif rate >= 52:
-        return "🟡 무난"
+        return "🟡 보통"
     elif rate >= 50:
-        return "⚡ 애매함"
+        return "⚡ 주의"
     elif rate >= 47:
-        return "🟠 별로"
+        return "🟠 약함"
     else:
-        return "🔴 갈아타세요"
+        return "🔴 교체"
 
 
 def _avg_verdict(avg: float) -> str:
@@ -922,7 +922,7 @@ def build_summary_embeds(meta_info: dict, all_stats: list[dict], watched_stats: 
 
     embeds.append({
         "title": "🎯 내 덱 현황",
-        "description": "내가 쓰는 덱들 실시간 성적이에요.\n🟢 존강 58%+ / ✅ 쓸만 55%+ / 🟡 무난 52%+ / ⚡ 애매 50%+ / 🟠 별로 47%+ / 🔴 갈아타 47%-",
+        "description": "내가 쓰는 덱들 실시간 성적이에요.\n🟢 강력 58%+ / ✅ 좋음 55%+ / 🟡 보통 52%+ / ⚡ 주의 50%+ / 🟠 약함 47%+ / 🔴 교체 47%-",
         "color": 0x2ECC71,
         "fields": deck_fields,
         "footer": {"text": now_str},
