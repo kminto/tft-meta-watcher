@@ -30,169 +30,74 @@ RIOT_PATCH_SCHEDULE_URL = "https://support-leagueoflegends.riotgames.com/hc/ko/a
 # 패치 직후 집중 감시 시간 (초) - 패치 감지 후 6시간 동안 집중 모드
 POST_PATCH_WATCH_DURATION = 6 * 60 * 60
 
-# 감시 대상 덱 (키워드 매칭)
-WATCHED_DECKS = {
-    "main": [
-        {"keywords": ["별돌보미", "룰루"], "label": "별돌보미 룰루"},
-    ],
-    "ad_alt": [
-        {"keywords": ["전달자", "미스 포츈"], "label": "전달자 미스 포츈"},
-        {"keywords": ["운명술사", "코르키"], "label": "운명술사 코르키"},
-    ],
-    "special": [
-        {"keywords": ["시간 균열자", "이즈리얼"], "label": "시간 균열자 이즈리얼"},
-    ],
-}
+# 감시 대상 덱 (config.json에서 로드, 디스코드 봇으로 변경 가능)
+CONFIG_FILE = SCRIPT_DIR / "config.json"
 
-# ── 챔피언/아이템/시너지 한글 매핑 ─────────────────────────────────────────────
 
-# TFT 세트17 챔피언 (key → 한글이름, 코스트)
-CHAMPION_DATA = {
-    # 1코스트
-    "TFT17_Darius": ("다리우스", 1), "TFT17_Elise": ("엘리스", 1),
-    "TFT17_Jax": ("잭스", 1), "TFT17_Kindred": ("킨드레드", 1),
-    "TFT17_Morgana": ("모르가나", 1), "TFT17_Nocturne": ("녹턴", 1),
-    "TFT17_Poppy": ("뽀삐", 1), "TFT17_Seraphine": ("세라핀", 1),
-    "TFT17_Shaco": ("샤코", 1), "TFT17_Twisted_Fate": ("트위스티드 페이트", 1),
-    "TFT17_Twitch": ("트위치", 1), "TFT17_Ziggs": ("직스", 1),
-    # 2코스트
-    "TFT17_Cassiopeia": ("카시오페아", 2), "TFT17_Draven": ("드레이븐", 2),
-    "TFT17_Galio": ("갈리오", 2), "TFT17_KhaZix": ("카직스", 2),
-    "TFT17_Lillia": ("릴리아", 2), "TFT17_Renekton": ("레넥톤", 2),
-    "TFT17_Senna": ("세나", 2), "TFT17_Soraka": ("소라카", 2),
-    "TFT17_Syndra": ("신드라", 2), "TFT17_Tristana": ("트리스타나", 2),
-    "TFT17_Vex": ("벡스", 2), "TFT17_Zyra": ("자이라", 2),
-    # 3코스트
-    "TFT17_Ekko": ("에코", 3), "TFT17_Ezreal": ("이즈리얼", 3),
-    "TFT17_Graves": ("그레이브즈", 3), "TFT17_Katarina": ("카타리나", 3),
-    "TFT17_Lulu": ("룰루", 3), "TFT17_MissFortune": ("미스 포츈", 3),
-    "TFT17_Mordekaiser": ("모데카이저", 3), "TFT17_Neeko": ("니코", 3),
-    "TFT17_Sett": ("세트", 3), "TFT17_Veigar": ("베이가", 3),
-    "TFT17_Wukong": ("오공", 3), "TFT17_Zoe": ("조이", 3),
-    # 4코스트
-    "TFT17_Aphelios": ("아펠리오스", 4), "TFT17_Corki": ("코르키", 4),
-    "TFT17_Gwen": ("그웬", 4), "TFT17_KSante": ("크산테", 4),
-    "TFT17_Nami": ("나미", 4), "TFT17_TahmKench": ("탐 켄치", 4),
-    "TFT17_Talon": ("탈론", 4), "TFT17_Vladimir": ("블라디미르", 4),
-    "TFT17_Zed": ("제드", 4), "TFT17_Yone": ("요네", 4),
-    # 5코스트
-    "TFT17_AurelionSol": ("아우렐리온 솔", 5), "TFT17_Camille": ("카밀", 5),
-    "TFT17_Heimerdinger": ("하이머딩거", 5), "TFT17_Jinx": ("징크스", 5),
-    "TFT17_Milio": ("밀리오", 5), "TFT17_Samira": ("사미라", 5),
-    "TFT17_Silco": ("실코", 5), "TFT17_Xerath": ("제라스", 5),
-    "TFT17_Viktor": ("빅토르", 5),
-    # 추가 챔프 (세트17 확장 / 매핑 누락분)
-    "TFT17_Aatrox": ("아트록스", 4), "TFT17_Caitlyn": ("케이틀린", 3),
-    "TFT17_Gnar": ("나르", 2), "TFT17_Gragas": ("그라가스", 2),
-    "TFT17_Illaoi": ("일라오이", 3), "TFT17_Leona": ("레오나", 2),
-    "TFT17_Maokai": ("마오카이", 1), "TFT17_Nunu": ("누누", 2),
-    "TFT17_Pantheon": ("판테온", 4), "TFT17_Rhaast": ("라아스트", 4),
-    "TFT17_Riven": ("리븐", 3), "TFT17_Ornn": ("오른", 4),
-    "TFT17_Rammus": ("람머스", 2), "TFT17_Shen": ("쉔", 3),
-}
+def load_watched_decks() -> dict:
+    """config.json에서 감시 덱 설정을 로드한다."""
+    if CONFIG_FILE.exists():
+        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+            config = json.load(f)
+            return config.get("watched_decks", {})
+    # 폴백 기본값
+    return {
+        "main": [{"keywords": ["별돌보미", "룰루"], "label": "별돌보미 룰루"}],
+        "ad_alt": [
+            {"keywords": ["전달자", "미스 포츈"], "label": "전달자 미스 포츈"},
+            {"keywords": ["운명술사", "코르키"], "label": "운명술사 코르키"},
+        ],
+        "special": [{"keywords": ["시간 균열자", "이즈리얼"], "label": "시간 균열자 이즈리얼"}],
+    }
 
-# 코스트별 이모지
+
+WATCHED_DECKS = load_watched_decks()
+
+# ── 챔피언/아이템/시너지 데이터 (커뮤니티 드래곤에서 자동 로드) ──────────────────
+
+COMMUNITY_DRAGON_URL = "https://raw.communitydragon.org/latest/cdragon/tft/ko_kr.json"
+
+# 런타임에 채워지는 딕셔너리 (key → (한글이름, 코스트))
+CHAMPION_DATA: dict[str, tuple[str, int]] = {}
+ITEM_NAMES: dict[str, str] = {}
+TRAIT_NAMES: dict[str, str] = {}
+
 COST_EMOJI = {1: "⬜", 2: "🟩", 3: "🟦", 4: "🟪", 5: "🟨"}
-
-# TFT 아이템 한글 매핑
-ITEM_NAMES = {
-    # 완성 아이템
-    "TFT_Item_BFSword": "B.F. 대검", "TFT_Item_ChainVest": "쇠사슬 조끼",
-    "TFT_Item_GiantsBelt": "거인의 허리띠", "TFT_Item_NeedlesslyLargeRod": "쓸데없이 큰 지팡이",
-    "TFT_Item_NegatronCloak": "음전자 망토", "TFT_Item_RecurveBow": "곡궁",
-    "TFT_Item_SparringGloves": "연습용 장갑", "TFT_Item_Spatula": "뒤집개",
-    "TFT_Item_TearOfTheGoddess": "여신의 눈물",
-    # 조합 아이템
-    "TFT_Item_ArchangelsStaff": "대천사의 지팡이",
-    "TFT_Item_Bloodthirster": "피바라기",
-    "TFT_Item_BlueBuff": "푸른 파수꾼",
-    "TFT_Item_BrambleVest": "덤불 조끼",
-    "TFT_Item_Crownguard": "왕관수호대",
-    "TFT_Item_Deathblade": "죽음의 검",
-    "TFT_Item_DragonsClaw": "용의 발톱",
-    "TFT_Item_EdgeOfNight": "밤의 끝자락",
-    "TFT_Item_EmblemsEmblem": "상징",
-    "TFT_Item_GargoyleStoneplate": "가고일 돌갑옷",
-    "TFT_Item_GiantSlayer": "거인 학살자",
-    "TFT_Item_GuardianAngel": "수호 천사",
-    "TFT_Item_GuinsoosRageblade": "구인수의 격노검",
-    "TFT_Item_HandOfJustice": "정의의 손",
-    "TFT_Item_HextechGunblade": "마법공학 총검",
-    "TFT_Item_InfinityEdge": "무한의 대검",
-    "TFT_Item_IonicSpark": "이온 충격기",
-    "TFT_Item_JeweledGauntlet": "보석 건틀릿",
-    "TFT_Item_LastWhisper": "최후의 속삭임",
-    "TFT_Item_Leviathan": "리바이어던",
-    "TFT_Item_LocketOfTheIronSolari": "솔라리의 펜던트",
-    "TFT_Item_Morellonomicon": "모렐로노미콘",
-    "TFT_Item_NashorsTooth": "내셔의 이빨",
-    "TFT_Item_ProtectorsVow": "수호자의 맹세",
-    "TFT_Item_Quicksilver": "수은",
-    "TFT_Item_RabadonsDeathcap": "라바돈의 죽음모자",
-    "TFT_Item_RedBuff": "붉은 파수꾼",
-    "TFT_Item_Redemption": "구원",
-    "TFT_Item_RunaansHurricane": "루난의 허리케인",
-    "TFT_Item_SpearOfShojin": "쇼진의 창",
-    "TFT_Item_StatikkShiv": "스태틱의 단검",
-    "TFT_Item_SteadfastHeart": "굳건한 심장",
-    "TFT_Item_SteraksGage": "스테락의 도전",
-    "TFT_Item_SunfireCape": "태양불꽃 망토",
-    "TFT_Item_ThiefsGloves": "도둑의 장갑",
-    "TFT_Item_TitansResolve": "거인의 결의",
-    "TFT_Item_WarmogsArmor": "워모그의 갑옷",
-    "TFT_Item_ZekesHerald": "지크의 전령",
-    "TFT_Item_Zephyr": "서풍",
-    "TFT_Item_ZzRotPortal": "즈롯 차원문",
-    # 추가 아이템 (세트17 신규 / 누락분)
-    "TFT_Item_AdaptiveHelm": "적응형 투구",
-    "TFT_Item_FrozenHeart": "얼어붙은 심장",
-    "TFT_Item_MadredsBloodrazor": "매드레드의 피바라기",
-    "TFT_Item_PowerGauntlet": "힘의 건틀릿",
-    "TFT17_Item_MadredsBloodrazor": "매드레드의 피바라기",
-    "TFT17_Item_PowerGauntlet": "힘의 건틀릿",
-    "TFT17_Item_AdaptiveHelm": "적응형 투구",
-    "TFT17_Item_FrozenHeart": "얼어붙은 심장",
-    "TFT17_Item_PsyOpsDroneMod": "사이옵스 드론",
-}
-
-# TFT 세트17 시너지 한글 매핑
-TRAIT_NAMES = {
-    "TFT17_Stargazer": "별돌보미", "TFT17_Emissary": "전달자",
-    "TFT17_Oracle": "운명술사", "TFT17_ChronoBreaker": "시간 균열자",
-    "TFT17_NOVA": "N.O.V.A.", "TFT17_Slayer": "학살자",
-    "TFT17_Techno": "테크노", "TFT17_Bruiser": "싸움꾼",
-    "TFT17_Bastion": "보루", "TFT17_Invoker": "기원사",
-    "TFT17_Marksman": "명사수", "TFT17_Sorcerer": "마법사",
-    "TFT17_Assassin": "암살자", "TFT17_Vanguard": "선봉대",
-    "TFT17_Protector": "수호자", "TFT17_Rebel": "반군",
-    "TFT17_Rapidfire": "속사포", "TFT17_Aegis": "방패술사",
-    "TFT17_Artillerist": "포병", "TFT17_Duelist": "결투가",
-    "TFT17_Executioner": "처형자", "TFT17_Guardian": "수호자",
-    "TFT17_Mystic": "신비술사", "TFT17_Redeemer": "구원자",
-    "TFT17_Shapeshifter": "변신술사",
-    # 추가 시너지 (세트17 확장 / 누락분)
-    "TFT17_ManaTrait": "마나",
-    "TFT17_APTrait": "주문력",
-    "TFT17_RangedTrait": "원거리",
-    "TFT17_HPTank": "체력탱",
-    "TFT17_ResistTank": "저항탱",
-    "TFT17_ShieldTank": "방패탱",
-    "TFT17_DRX": "DRX",
-    "TFT17_ADMIN": "관리자",
-    "TFT17_Astronaut": "우주비행사",
-    "TFT17_Fateweaver": "운명술사",
-    "TFT17_PsyOps": "사이옵스",
-    "TFT17_Timebreaker": "시간 균열자",
-    # 고유 특성
-    "TFT17_MorganaUniqueTrait": "모르가나 고유",
-    "TFT17_RhaastUniqueTrait": "라아스트 고유",
-    "TFT17_ShenUniqueTrait": "쉔 고유",
-    "TFT17_MissFortuneUniqueTrait": "미스 포츈 고유",
-    "TFT17_TahmKenchUniqueTrait": "탐 켄치 고유",
-}
-
-# 시너지 스타일 (style → 등급)
 TRAIT_STYLE = {1: "🥉", 2: "🥈", 3: "🥇", 4: "💠"}
+
+
+def load_tft_data():
+    """커뮤니티 드래곤에서 챔피언/아이템/시너지 데이터를 자동 로드한다."""
+    global CHAMPION_DATA, ITEM_NAMES, TRAIT_NAMES
+    try:
+        resp = requests.get(COMMUNITY_DRAGON_URL, timeout=30)
+        resp.raise_for_status()
+        data = resp.json()
+
+        # 최신 세트 찾기 (TFT17 등)
+        sets = data.get("sets", {})
+        for set_num in sorted(sets.keys(), key=int, reverse=True):
+            champs = sets[set_num].get("champions", [])
+            tft_champs = [c for c in champs if c.get("apiName", "").startswith("TFT") and c.get("cost", 0) <= 5 and c.get("cost", 0) >= 1]
+            if len(tft_champs) >= 30:
+                for c in tft_champs:
+                    CHAMPION_DATA[c["apiName"]] = (c.get("name", ""), c.get("cost", 0))
+                # 시너지도 같은 세트에서
+                for t in sets[set_num].get("traits", []):
+                    TRAIT_NAMES[t.get("apiName", "")] = t.get("name", "")
+                logger.info(f"세트 {set_num} 데이터 로드: 챔프 {len(tft_champs)}개, 시너지 {len(sets[set_num].get('traits', []))}개")
+                break
+
+        # 아이템 (전체)
+        for item in data.get("items", []):
+            api_name = item.get("apiName", "")
+            name = item.get("name", "")
+            if api_name and name and not api_name.startswith("TFT_Consumable"):
+                ITEM_NAMES[api_name] = name
+
+        logger.info(f"아이템 {len(ITEM_NAMES)}개 로드 완료")
+    except Exception as e:
+        logger.warning(f"커뮤니티 드래곤 데이터 로드 실패 (폴백 사용): {e}")
 
 
 logging.basicConfig(
@@ -1401,6 +1306,13 @@ def main():
         return
 
     logger.info("TFT 메타 감시 시작...")
+
+    # 챔피언/아이템 데이터 로드 (커뮤니티 드래곤)
+    load_tft_data()
+
+    # config.json에서 최신 덱 설정 리로드
+    global WATCHED_DECKS
+    WATCHED_DECKS = load_watched_decks()
 
     # 데이터 수집
     try:
