@@ -1,0 +1,4 @@
+.env
+state/tft_meta_state.json
+__pycache__/
+*.pyc
