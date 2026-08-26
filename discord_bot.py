@@ -56,12 +56,12 @@ async def deck_list(interaction: discord.Interaction):
     for cat, cat_name in CATEGORY_NAMES.items():
         entries = decks.get(cat, [])
         if entries:
-            value = "\n".join(f"• **{e['label']}** ({', '.join(e['keywords'])})" for e in entries)
+            value = "\n".join(f"• **{e['label']}** (특성: {e['keywords'][0]}, 챔프: {e['keywords'][1] if len(e['keywords'])>1 else '-'})" for e in entries)
         else:
             value = "없음"
         embed.add_field(name=cat_name, value=value, inline=False)
 
-    embed.set_footer(text=f"덱 변경: /메인덱변경, /AD덱변경, /특수덱변경, /덱추가, /덱삭제")
+    embed.set_footer(text="덱 변경: /메인덱변경, /AD덱변경, /특수덱변경, /덱추가, /덱삭제")
     await interaction.response.send_message(embed=embed)
 
 
@@ -70,25 +70,21 @@ async def deck_list(interaction: discord.Interaction):
 @tree.command(name="메인덱변경", description="메인덱을 변경합니다")
 @app_commands.describe(
     덱이름="덱 이름 (예: 별돌보미 룰루)",
-    키워드1="검색 키워드 1 (예: 별돌보미)",
-    키워드2="검색 키워드 2 (예: 룰루)",
+    특성="덱의 핵심 특성 (예: 별돌보미)",
+    대표챔프="메인 캐리 챔프 이름 (예: 룰루)",
 )
-async def change_main(interaction: discord.Interaction, 덱이름: str, 키워드1: str, 키워드2: str = ""):
+async def change_main(interaction: discord.Interaction, 덱이름: str, 특성: str, 대표챔프: str):
     config = load_config()
-    keywords = [키워드1]
-    if 키워드2:
-        keywords.append(키워드2)
-
-    config["watched_decks"]["main"] = [{"keywords": keywords, "label": 덱이름}]
+    config["watched_decks"]["main"] = [{"keywords": [특성, 대표챔프], "label": 덱이름}]
     save_config(config)
 
     embed = discord.Embed(
         title="✅ 메인덱 변경 완료",
-        description=f"**{덱이름}** (키워드: {', '.join(keywords)})\n\n다음 감시 때부터 적용됩니다.",
+        description=f"**{덱이름}**\n특성: {특성} | 대표챔프: {대표챔프}\n\n다음 감시 때부터 적용됩니다.",
         color=0x00C853,
     )
     await interaction.response.send_message(embed=embed)
-    logger.info(f"메인덱 변경: {덱이름} ({keywords})")
+    logger.info(f"메인덱 변경: {덱이름} ({특성}, {대표챔프})")
 
 
 # ── /AD덱변경 ─────────────────────────────────────────────────────────────────
@@ -96,21 +92,17 @@ async def change_main(interaction: discord.Interaction, 덱이름: str, 키워�
 @tree.command(name="ad덱변경", description="AD 대체덱을 변경합니다 (기존 AD덱 전부 교체)")
 @app_commands.describe(
     덱이름="덱 이름 (예: 전달자 미스 포츈)",
-    키워드1="검색 키워드 1",
-    키워드2="검색 키워드 2",
+    특성="덱의 핵심 특성 (예: 전달자)",
+    대표챔프="메인 캐리 챔프 이름 (예: 미스 포츈)",
 )
-async def change_ad(interaction: discord.Interaction, 덱이름: str, 키워드1: str, 키워드2: str = ""):
+async def change_ad(interaction: discord.Interaction, 덱이름: str, 특성: str, 대표챔프: str):
     config = load_config()
-    keywords = [키워드1]
-    if 키워드2:
-        keywords.append(키워드2)
-
-    config["watched_decks"]["ad_alt"] = [{"keywords": keywords, "label": 덱이름}]
+    config["watched_decks"]["ad_alt"] = [{"keywords": [특성, 대표챔프], "label": 덱이름}]
     save_config(config)
 
     embed = discord.Embed(
         title="✅ AD 대체덱 변경 완료",
-        description=f"**{덱이름}** (키워드: {', '.join(keywords)})\n\n기존 AD덱이 모두 교체됐어요.",
+        description=f"**{덱이름}**\n특성: {특성} | 대표챔프: {대표챔프}\n\n기존 AD덱이 모두 교체됐어요.",
         color=0x00C853,
     )
     await interaction.response.send_message(embed=embed)
@@ -121,21 +113,17 @@ async def change_ad(interaction: discord.Interaction, 덱이름: str, 키워드1
 @tree.command(name="특수덱변경", description="특수 상황덱을 변경합니다")
 @app_commands.describe(
     덱이름="덱 이름 (예: 시간 균열자 이즈리얼)",
-    키워드1="검색 키워드 1",
-    키워드2="검색 키워드 2",
+    특성="덱의 핵심 특성 (예: 시간 균열자)",
+    대표챔프="메인 캐리 챔프 이름 (예: 이즈리얼)",
 )
-async def change_special(interaction: discord.Interaction, 덱이름: str, 키워드1: str, 키워드2: str = ""):
+async def change_special(interaction: discord.Interaction, 덱이름: str, 특성: str, 대표챔프: str):
     config = load_config()
-    keywords = [키워드1]
-    if 키워드2:
-        keywords.append(키워드2)
-
-    config["watched_decks"]["special"] = [{"keywords": keywords, "label": 덱이름}]
+    config["watched_decks"]["special"] = [{"keywords": [특성, 대표챔프], "label": 덱이름}]
     save_config(config)
 
     embed = discord.Embed(
         title="✅ 특수덱 변경 완료",
-        description=f"**{덱이름}** (키워드: {', '.join(keywords)})",
+        description=f"**{덱이름}**\n특성: {특성} | 대표챔프: {대표챔프}",
         color=0x00C853,
     )
     await interaction.response.send_message(embed=embed)
@@ -146,9 +134,9 @@ async def change_special(interaction: discord.Interaction, 덱이름: str, 키�
 @tree.command(name="덱추가", description="감시 덱을 추가합니다")
 @app_commands.describe(
     카테고리="메인 / AD대체 / 특수",
-    덱이름="덱 이름",
-    키워드1="검색 키워드 1",
-    키워드2="검색 키워드 2",
+    덱이름="덱 이름 (예: 전달자 조이)",
+    특성="덱의 핵심 특성 (예: 전달자)",
+    대표챔프="메인 캐리 챔프 이름 (예: 조이)",
 )
 @app_commands.choices(카테고리=[
     app_commands.Choice(name="메인덱", value="main"),
@@ -156,17 +144,14 @@ async def change_special(interaction: discord.Interaction, 덱이름: str, 키�
     app_commands.Choice(name="특수 상황덱", value="special"),
 ])
 async def add_deck(interaction: discord.Interaction, 카테고리: app_commands.Choice[str],
-                   덱이름: str, 키워드1: str, 키워드2: str = ""):
+                   덱이름: str, 특성: str, 대표챔프: str):
     config = load_config()
-    keywords = [키워드1]
-    if 키워드2:
-        keywords.append(키워드2)
-
+    keywords = [특성, 대표챔프]
     cat = 카테고리.value
+
     if cat not in config["watched_decks"]:
         config["watched_decks"][cat] = []
 
-    # 중복 체크
     for existing in config["watched_decks"][cat]:
         if existing["label"] == 덱이름:
             await interaction.response.send_message(f"⚠️ **{덱이름}**은 이미 {카테고리.name}에 있어요.", ephemeral=True)
@@ -177,7 +162,7 @@ async def add_deck(interaction: discord.Interaction, 카테고리: app_commands.
 
     embed = discord.Embed(
         title="✅ 덱 추가 완료",
-        description=f"**{덱이름}**을 {카테고리.name}에 추가했어요.\n키워드: {', '.join(keywords)}",
+        description=f"**{덱이름}**을 {카테고리.name}에 추가했어요.\n특성: {특성} | 대표챔프: {대표챔프}",
         color=0x00C853,
     )
     await interaction.response.send_message(embed=embed)
@@ -233,11 +218,31 @@ async def help_cmd(interaction: discord.Interaction):
         name="덱 관리",
         value=(
             "**/덱목록** — 현재 감시 중인 덱 확인\n"
-            "**/메인덱변경** 덱이름 키워드1 키워드2 — 메인덱 교체\n"
-            "**/ad덱변경** 덱이름 키워드1 키워드2 — AD덱 교체\n"
-            "**/특수덱변경** 덱이름 키워드1 키워드2 — 특수덱 교체\n"
-            "**/덱추가** 카테고리 덱이름 키워드1 키워드2 — 덱 추가\n"
-            "**/덱삭제** 덱이름 — 덱 삭제"
+            "**/메인덱변경** — 메인덱 교체\n"
+            "**/ad덱변경** — AD덱 교체\n"
+            "**/특수덱변경** — 특수덱 교체\n"
+            "**/덱추가** — 덱 추가\n"
+            "**/덱삭제** — 덱 삭제"
+        ),
+        inline=False,
+    )
+    embed.add_field(
+        name="입력 방법",
+        value=(
+            "**특성** = 롤체지지에 나오는 덱 특성 이름\n"
+            "**대표챔프** = 메인 캐리 챔프 이름\n\n"
+            "이 두 키워드로 롤체지지에서 덱을 찾아 매칭해요."
+        ),
+        inline=False,
+    )
+    embed.add_field(
+        name="사용 예시",
+        value=(
+            "```\n"
+            "/메인덱변경 덱이름:별돌보미 룰루 특성:별돌보미 대표챔프:룰루\n"
+            "/덱추가 카테고리:AD 대체덱 덱이름:전달자 조이 특성:전달자 대표챔프:조이\n"
+            "/덱삭제 덱이름:운명술사 코르키\n"
+            "```"
         ),
         inline=False,
     )
@@ -246,17 +251,6 @@ async def help_cmd(interaction: discord.Interaction):
         value=(
             "**/현황** — 웹 대시보드 링크\n"
             "**/도움말** — 이 도움말"
-        ),
-        inline=False,
-    )
-    embed.add_field(
-        name="사용 예시",
-        value=(
-            "```\n"
-            "/메인덱변경 덱이름:별돌보미 룰루 키워드1:별돌보미 키워드2:룰루\n"
-            "/덱추가 카테고리:AD 대체덱 덱이름:전달자 조이 키워드1:전달자 키워드2:조이\n"
-            "/덱삭제 덱이름:운명술사 코르키\n"
-            "```"
         ),
         inline=False,
     )
@@ -269,8 +263,6 @@ def main():
     token = os.getenv("DISCORD_BOT_TOKEN")
     if not token:
         logger.error("DISCORD_BOT_TOKEN 환경변수가 설정되지 않았습니다.")
-        logger.info("Discord Developer Portal에서 봇 토큰을 발급받으세요:")
-        logger.info("https://discord.com/developers/applications")
         return
     client.run(token)
 
