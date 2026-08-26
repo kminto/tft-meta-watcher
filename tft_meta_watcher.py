@@ -1165,6 +1165,8 @@ def build_summary_embeds(meta_info: dict, all_stats: list[dict], watched_stats: 
     total_decks = len(all_stats)
     avg_top4 = sum(s["top4_rate"] for s in all_stats) / total_decks if total_decks else 0
 
+    DASHBOARD_URL = "https://kminto.github.io/tft-meta-watcher/"
+
     embeds.append({
         "title": "📋 TFT 메타 리포트",
         "description": (
@@ -1173,7 +1175,8 @@ def build_summary_embeds(meta_info: dict, all_stats: list[dict], watched_stats: 
             f"패치    : {meta_info.get('patch', 'N/A')}\n"
             f"업데이트 : {meta_info.get('updatedAt', 'N/A')}\n"
             f"분석 덱  : {total_decks}개\n"
-            f"```"
+            f"```\n"
+            f"[📱 웹 대시보드에서 상세 보기]({DASHBOARD_URL})"
         ),
         "color": 0x1E90FF,
         "footer": {"text": f"롤체지지 기준 | {now_str}"},
