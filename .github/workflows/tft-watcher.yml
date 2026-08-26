@@ -2,9 +2,12 @@ name: TFT Meta Watcher
 
 on:
   schedule:
-    # 30분마다 실행 (UTC 기준, KST = UTC+9)
     - cron: '*/30 * * * *'
-  workflow_dispatch:  # 수동 실행 버튼
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
 
 jobs:
   watch:
@@ -22,7 +25,6 @@ jobs:
       - name: 패키지 설치
         run: pip install requests beautifulsoup4 python-dotenv
 
-      # 이전 상태 파일 복원 (캐시)
       - name: 이전 상태 복원
         uses: actions/cache/restore@v4
         with:
@@ -36,10 +38,18 @@ jobs:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: python tft_meta_watcher.py
 
-      # 상태 파일 저장 (다음 실행에서 비교용)
       - name: 상태 저장
         uses: actions/cache/save@v4
         if: always()
         with:
           path: state/tft_meta_state.json
           key: tft-state-${{ github.run_number }}
+
+      - name: GitHub Pages 배포
+        if: always()
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs
+          publish_branch: gh-pages
+          commit_message: "update dashboard"

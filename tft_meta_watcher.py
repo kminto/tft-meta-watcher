@@ -10,6 +10,8 @@ import logging
 from datetime import datetime
 from pathlib import Path
 
+from html import escape as html_escape
+
 import requests
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
@@ -20,6 +22,7 @@ load_dotenv()
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 STATE_FILE = SCRIPT_DIR / "state" / "tft_meta_state.json"
+HTML_OUTPUT = SCRIPT_DIR / "docs" / "index.html"
 LOLCHESS_URL = "https://lolchess.gg/decks?hl=ko"
 RIOT_PATCH_URL = "https://www.leagueoflegends.com/ko-kr/news/game-updates/"
 RIOT_PATCH_SCHEDULE_URL = "https://support-leagueoflegends.riotgames.com/hc/ko/articles/360018987893"
@@ -1010,6 +1013,99 @@ def build_deck_detail_embed(deck_raw: dict) -> dict:
     }
 
 
+# ── HTML 대시보드 생성 ────────────────────────────────────────────────────────
+
+def generate_html_report(meta_info, all_stats, watched_stats, decks_raw):
+    """TFT 메타 대시보드 HTML 페이지를 생성한다."""
+    esc = html_escape
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+    patch = esc(str(meta_info.get("patch", "N/A")))
+    updated_at = esc(str(meta_info.get("updatedAt", "N/A")))
+    total_decks = len(all_stats)
+
+    cost_class = {1: "cost-1", 2: "cost-2", 3: "cost-3", 4: "cost-4", 5: "cost-5"}
+    trait_style_label = {1: "🥉", 2: "🥈", 3: "🥇", 4: "💠"}
+    cat_label = {"main": "메인", "ad_alt": "AD대체", "special": "특수"}
+    cat_cls = {"main": "badge-main", "ad_alt": "badge-ad", "special": "badge-special"}
+
+    def vc(rate):
+        if rate >= 58: return "verdict-strong"
+        if rate >= 55: return "verdict-good"
+        if rate >= 52: return "verdict-normal"
+        if rate >= 50: return "verdict-caution"
+        if rate >= 47: return "verdict-weak"
+        return "verdict-replace"
+
+    def watched_html():
+        cards = []
+        for cat in ["main", "ad_alt", "special"]:
+            for label, stats in watched_stats.get(cat, {}).items():
+                t4 = stats["top4_rate"]; avg = stats["avg_placement"]
+                url = "https://lolchess.gg/decks?hl=ko"
+                for entry in WATCHED_DECKS.get(cat, []):
+                    if entry["label"] == label:
+                        for d in decks_raw:
+                            if deck_matches(d, entry): url = _deck_url(d); break
+                        break
+                cards.append(f'''<div class="deck-card"><div class="deck-card-header"><span class="deck-name">{esc(label)}</span><span class="cat-badge {cat_cls.get(cat,"")}">{cat_label.get(cat,"")}</span></div><div class="gauge-wrap"><div class="gauge-bar"><div class="gauge-fill {vc(t4)}-fill" style="width:{min(100,t4):.0f}%"></div></div><span class="gauge-label">{t4:.1f}%</span></div><div class="deck-stats"><div class="stat-item"><span class="stat-label">순방률</span><span class="stat-val">{t4:.1f}%</span></div><div class="stat-item"><span class="stat-label">평균등수</span><span class="stat-val">{avg:.2f}</span></div><div class="stat-item"><span class="stat-label">승률</span><span class="stat-val">{stats["win_rate"]:.1f}%</span></div><div class="stat-item"><span class="stat-label">판수</span><span class="stat-val">{stats["play_count"]:,}</span></div></div><div class="verdict-row"><span class="verdict-badge {vc(t4)}">{esc(_verdict_label(t4))}</span><a class="deck-link" href="{esc(url)}" target="_blank">롤체지지 보기 →</a></div></div>''')
+        return "\n".join(cards) if cards else '<p class="no-data">감시 덱 없음</p>'
+
+    def guide_html():
+        secs = []
+        for cat in ["main", "ad_alt", "special"]:
+            for label, stats in watched_stats.get(cat, {}).items():
+                raw = None
+                for entry in WATCHED_DECKS.get(cat, []):
+                    if entry["label"] == label:
+                        for d in decks_raw:
+                            if deck_matches(d, entry): raw = d; break
+                        break
+                if not raw: continue
+                champs = sorted(raw.get("deck",{}).get("champions",[]), key=lambda c:(c.get("coreRank",99),-_champ_cost(c.get("key",""))))
+                traits = sorted(raw.get("deck",{}).get("traits",[]), key=lambda t:-t.get("style",0))
+                ch_rows = []; carry_costs = []
+                for c in champs:
+                    k=c.get("key",""); nm=_champ_name(k); co=_champ_cost(k); cc=cost_class.get(co,"cost-1"); cr=c.get("coreRank",99); items=c.get("items",[])
+                    if cr<=4: carry_costs.append(co)
+                    star = "⭐ " if cr<=2 else ""
+                    itm = "".join(f'<span class="item-badge">{esc(_item_name(i))}</span>' for i in items) if items else ""
+                    ch_rows.append(f'<div class="champ-row{"  carry-row" if cr<=4 else ""}"><span class="champ-cost-dot {cc}"></span><span class="champ-name">{star}{esc(nm)}</span><span class="champ-cost-label">{co}코</span>{f"<div class=item-row>{itm}</div>" if itm else ""}</div>')
+                tr_rows = [f'<span class="trait-badge style-{t.get("style",1)}">{trait_style_label.get(t.get("style",1),"")} {esc(_trait_name(t.get("key","")))} {t.get("numUnits",0)}</span>' for t in traits]
+                rr = ""
+                vc2 = [c for c in carry_costs if 1<=c<=5]
+                if vc2:
+                    mc = max(set(vc2),key=vc2.count); o=get_optimal_reroll_level(mc); lv=o["optimal_level"]; inf=o["all_levels"].get(lv,{})
+                    rr = f'<div class="reroll-guide">🎰 <strong>리롤:</strong> Lv.{lv}에서 {mc}코 캐리 — 상점 {inf.get("shop_chance_pct",0):.1f}% | 50%: {inf.get("rolls_for_50pct","?")}롤({inf.get("gold_for_50pct","?")}G)</div>'
+                dk = raw.get("key",""); du = f"https://lolchess.gg/decks/{dk}?hl=ko" if dk else "#"
+                secs.append(f'<div class="guide-card"><div class="guide-header"><span class="guide-title">{esc(label)}</span><a class="deck-link" href="{du}" target="_blank">롤체지지 →</a></div><div class="guide-body"><div class="guide-col"><h4 class="col-title">챔피언 구성</h4><div class="champ-list">{"".join(ch_rows)}</div></div><div class="guide-col"><h4 class="col-title">시너지</h4><div class="trait-list">{"".join(tr_rows)}</div>{rr}</div></div></div>')
+        return "\n".join(secs) if secs else '<p class="no-data">없음</p>'
+
+    def top5_fn():
+        by = sorted(all_stats, key=lambda x:x["top4_rate"], reverse=True); medals=["🥇","🥈","🥉","4️⃣","5️⃣"]
+        return "\n".join(f'<div class="top5-row"><span class="top5-medal">{medals[i]}</span><div class="top5-info"><span class="top5-name">{esc(s["name"])}</span><div class="gauge-wrap"><div class="gauge-bar"><div class="gauge-fill {vc(s["top4_rate"])}-fill" style="width:{min(100,s["top4_rate"]):.0f}%"></div></div><span class="gauge-label">{s["top4_rate"]:.1f}%</span></div></div><div class="top5-meta"><span>{s["avg_placement"]:.2f}등</span><span>{s["play_count"]:,}판</span></div></div>' for i,s in enumerate(by[:5]))
+
+    def reroll_fn():
+        cn = {1:"⬜ 1코",2:"🟩 2코",3:"🟦 3코",4:"🟪 4코",5:"🟨 5코"}
+        rows = []
+        for c in range(1,6):
+            o=get_optimal_reroll_level(c); lv=o["optimal_level"]; inf=o["all_levels"].get(lv,{})
+            rows.append(f'<tr><td>{cn[c]}</td><td><strong>Lv.{lv}</strong></td><td>{inf.get("shop_chance_pct",0):.1f}%</td><td>{inf.get("rolls_for_50pct","-")}롤 / {inf.get("gold_for_50pct","-")}G</td><td>{inf.get("rolls_for_80pct","-")}롤</td></tr>')
+        return "\n".join(rows)
+
+    css = """*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}:root{--bg:#0e1117;--surface:#1a1f2e;--surface2:#242a3a;--border:#2e3650;--text:#e8eaf0;--text-muted:#8892aa;--accent:#4f7fff;--cost1:#9e9e9e;--cost2:#4caf50;--cost3:#2196f3;--cost4:#9c27b0;--cost5:#ffc107;--strong:#00c853;--good:#69f0ae;--normal:#ffeb3b;--caution:#ff9800;--weak:#ff5722;--replace:#f44336;--trait1:#cd7f32;--trait2:#c0c0c0;--trait3:#ffd700;--trait4:#b9f2ff;--radius:10px;--shadow:0 2px 12px rgba(0,0,0,.45)}body{background:var(--bg);color:var(--text);font-family:'Segoe UI','Noto Sans KR',Arial,sans-serif;font-size:15px;line-height:1.6;-webkit-text-size-adjust:100%}a{color:var(--accent);text-decoration:none}.site-header{background:linear-gradient(135deg,#1a1f2e,#0e1117);border-bottom:1px solid var(--border);padding:24px 16px 20px;text-align:center}.site-header h1{font-size:clamp(1.3rem,4vw,2rem);font-weight:800}.header-meta{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:10px}.header-chip{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:.78rem;color:var(--text-muted)}.header-chip strong{color:var(--text)}.container{max-width:960px;margin:0 auto;padding:16px 12px 40px}.section{margin-bottom:32px}.section-title{font-size:1rem;font-weight:700;border-left:3px solid var(--accent);padding-left:10px;margin-bottom:14px}.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}.deck-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow)}.deck-card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}.deck-name{font-weight:700;font-size:.93rem}.cat-badge{border-radius:4px;padding:2px 7px;font-size:.7rem;font-weight:700}.badge-main{background:#1a3a6b;color:#90caf9}.badge-ad{background:#3a1a1a;color:#ef9a9a}.badge-special{background:#2a1a3a;color:#ce93d8}.gauge-wrap{display:flex;align-items:center;gap:8px;margin-bottom:8px}.gauge-bar{flex:1;background:var(--surface2);border-radius:4px;height:8px;overflow:hidden}.gauge-fill{height:100%;border-radius:4px}.gauge-label{font-size:.8rem;font-weight:700;min-width:40px;text-align:right}.verdict-strong-fill{background:var(--strong)}.verdict-good-fill{background:var(--good)}.verdict-normal-fill{background:var(--normal)}.verdict-caution-fill{background:var(--caution)}.verdict-weak-fill{background:var(--weak)}.verdict-replace-fill{background:var(--replace)}.deck-stats{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:10px}.stat-item{display:flex;justify-content:space-between;background:var(--surface2);border-radius:6px;padding:4px 8px;font-size:.78rem}.stat-label{color:var(--text-muted)}.stat-val{font-weight:700}.verdict-row{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:5px}.verdict-badge{font-size:.76rem;font-weight:700;padding:2px 8px;border-radius:4px}.verdict-strong{background:#003322;color:var(--strong)}.verdict-good{background:#002211;color:var(--good)}.verdict-normal{background:#332e00;color:var(--normal)}.verdict-caution{background:#332200;color:var(--caution)}.verdict-weak{background:#331100;color:var(--weak)}.verdict-replace{background:#330000;color:var(--replace)}.deck-link{font-size:.76rem;color:var(--accent)}.guide-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:14px;overflow:hidden;box-shadow:var(--shadow)}.guide-header{display:flex;justify-content:space-between;align-items:center;background:var(--surface2);padding:10px 14px;border-bottom:1px solid var(--border)}.guide-title{font-weight:700;font-size:.93rem}.guide-body{display:grid;grid-template-columns:1fr 1fr}@media(max-width:640px){.guide-body{grid-template-columns:1fr}.guide-col+.guide-col{border-left:none!important;border-top:1px solid var(--border)}}.guide-col{padding:12px 14px}.guide-col+.guide-col{border-left:1px solid var(--border)}.col-title{font-size:.76rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);letter-spacing:.5px;margin-bottom:8px}.champ-list{display:flex;flex-direction:column;gap:4px}.champ-row{display:flex;align-items:center;flex-wrap:wrap;gap:5px;padding:4px 7px;border-radius:5px;background:var(--surface2);font-size:.82rem}.carry-row{border-left:2px solid var(--accent)}.champ-cost-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}.cost-1{background:var(--cost1)}.cost-2{background:var(--cost2)}.cost-3{background:var(--cost3)}.cost-4{background:var(--cost4)}.cost-5{background:var(--cost5)}.champ-name{font-weight:600;flex:1;min-width:50px}.champ-cost-label{font-size:.7rem;color:var(--text-muted)}.item-row{display:flex;flex-wrap:wrap;gap:3px;width:100%}.item-badge{background:#1e2535;border:1px solid var(--border);border-radius:3px;padding:1px 5px;font-size:.68rem;color:#afc6ff}.trait-list{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}.trait-badge{border-radius:4px;padding:2px 7px;font-size:.74rem;font-weight:600}.style-1{background:#2b1e0e;color:var(--trait1);border:1px solid #5a3a1a}.style-2{background:#1e2025;color:var(--trait2);border:1px solid #4a4a55}.style-3{background:#2b2500;color:var(--trait3);border:1px solid #6a5e00}.style-4{background:#0e2530;color:var(--trait4);border:1px solid #1a6a80}.reroll-guide{background:var(--surface2);border-radius:5px;padding:7px 9px;font-size:.8rem;margin-top:6px}.top5-list{display:flex;flex-direction:column;gap:8px}.top5-row{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px}.top5-medal{font-size:1.3rem;flex-shrink:0;width:28px;text-align:center}.top5-info{flex:1;min-width:0}.top5-name{display:block;font-weight:700;font-size:.88rem;margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.top5-meta{display:flex;flex-direction:column;align-items:flex-end;gap:1px;font-size:.76rem;color:var(--text-muted)}.reroll-table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:.82rem}th{background:var(--surface2);color:var(--text-muted);font-weight:600;padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}td{padding:7px 10px;border-bottom:1px solid var(--border)}tr:last-child td{border-bottom:none}.site-footer{text-align:center;padding:16px;font-size:.78rem;color:var(--text-muted);border-top:1px solid var(--border)}.no-data{color:var(--text-muted);font-size:.85rem;padding:10px 0}"""
+
+    return f"""<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>TFT 메타 대시보드</title><style>{css}</style></head><body>
+<header class="site-header"><h1>🎮 TFT 메타 대시보드</h1><div class="header-meta"><span class="header-chip">패치 <strong>{patch}</strong></span><span class="header-chip">업데이트 <strong>{updated_at}</strong></span><span class="header-chip">분석 덱 <strong>{total_decks}개</strong></span></div></header>
+<main class="container">
+<section class="section"><h2 class="section-title">🎯 내 덱 현황</h2><div class="cards-grid">{watched_html()}</div></section>
+<section class="section"><h2 class="section-title">📖 덱 상세 가이드</h2>{guide_html()}</section>
+<section class="section"><h2 class="section-title">🏆 순방률 TOP 5</h2><div class="top5-list">{top5_fn()}</div></section>
+<section class="section"><h2 class="section-title">🎰 리롤 확률 가이드</h2><div class="reroll-table-wrap"><table><thead><tr><th>코스트</th><th>최적 레벨</th><th>상점 확률</th><th>50% 달성</th><th>80% 달성</th></tr></thead><tbody>{reroll_fn()}</tbody></table></div></section>
+</main>
+<footer class="site-footer">롤체지지 기준 | 마지막 업데이트: {now_str} | <a href="https://lolchess.gg/decks?hl=ko" target="_blank">lolchess.gg</a></footer>
+</body></html>"""
+
+
 # ── Discord 전송 ─────────────────────────────────────────────────────────────
 
 def _deck_url(deck_raw: dict) -> str:
@@ -1461,6 +1557,16 @@ def main():
         logger.info(f"총 {len(embeds)}개 임베드 {'출력' if args.dry_run else '전송'} 완료")
     else:
         logger.info("변경 사항 없음. 알림을 보내지 않습니다.")
+
+    # HTML 대시보드 생성 (GitHub Pages용)
+    try:
+        html_content = generate_html_report(meta_info, all_stats, watched_stats, decks)
+        HTML_OUTPUT.parent.mkdir(parents=True, exist_ok=True)
+        with open(HTML_OUTPUT, "w", encoding="utf-8") as f:
+            f.write(html_content)
+        logger.info(f"HTML 대시보드 생성: {HTML_OUTPUT}")
+    except Exception as e:
+        logger.warning(f"HTML 대시보드 생성 실패: {e}")
 
     logger.info("TFT 메타 감시 완료.")
 
