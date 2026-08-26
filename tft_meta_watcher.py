@@ -41,6 +41,157 @@ WATCHED_DECKS = {
     ],
 }
 
+# ── 챔피언/아이템/시너지 한글 매핑 ─────────────────────────────────────────────
+
+# TFT 세트17 챔피언 (key → 한글이름, 코스트)
+CHAMPION_DATA = {
+    # 1코스트
+    "TFT17_Darius": ("다리우스", 1), "TFT17_Elise": ("엘리스", 1),
+    "TFT17_Jax": ("잭스", 1), "TFT17_Kindred": ("킨드레드", 1),
+    "TFT17_Morgana": ("모르가나", 1), "TFT17_Nocturne": ("녹턴", 1),
+    "TFT17_Poppy": ("뽀삐", 1), "TFT17_Seraphine": ("세라핀", 1),
+    "TFT17_Shaco": ("샤코", 1), "TFT17_Twisted_Fate": ("트위스티드 페이트", 1),
+    "TFT17_Twitch": ("트위치", 1), "TFT17_Ziggs": ("직스", 1),
+    # 2코스트
+    "TFT17_Cassiopeia": ("카시오페아", 2), "TFT17_Draven": ("드레이븐", 2),
+    "TFT17_Galio": ("갈리오", 2), "TFT17_KhaZix": ("카직스", 2),
+    "TFT17_Lillia": ("릴리아", 2), "TFT17_Renekton": ("레넥톤", 2),
+    "TFT17_Senna": ("세나", 2), "TFT17_Soraka": ("소라카", 2),
+    "TFT17_Syndra": ("신드라", 2), "TFT17_Tristana": ("트리스타나", 2),
+    "TFT17_Vex": ("벡스", 2), "TFT17_Zyra": ("자이라", 2),
+    # 3코스트
+    "TFT17_Ekko": ("에코", 3), "TFT17_Ezreal": ("이즈리얼", 3),
+    "TFT17_Graves": ("그레이브즈", 3), "TFT17_Katarina": ("카타리나", 3),
+    "TFT17_Lulu": ("룰루", 3), "TFT17_MissFortune": ("미스 포츈", 3),
+    "TFT17_Mordekaiser": ("모데카이저", 3), "TFT17_Neeko": ("니코", 3),
+    "TFT17_Sett": ("세트", 3), "TFT17_Veigar": ("베이가", 3),
+    "TFT17_Wukong": ("오공", 3), "TFT17_Zoe": ("조이", 3),
+    # 4코스트
+    "TFT17_Aphelios": ("아펠리오스", 4), "TFT17_Corki": ("코르키", 4),
+    "TFT17_Gwen": ("그웬", 4), "TFT17_KSante": ("크산테", 4),
+    "TFT17_Nami": ("나미", 4), "TFT17_TahmKench": ("탐 켄치", 4),
+    "TFT17_Talon": ("탈론", 4), "TFT17_Vladimir": ("블라디미르", 4),
+    "TFT17_Zed": ("제드", 4), "TFT17_Yone": ("요네", 4),
+    # 5코스트
+    "TFT17_AurelionSol": ("아우렐리온 솔", 5), "TFT17_Camille": ("카밀", 5),
+    "TFT17_Heimerdinger": ("하이머딩거", 5), "TFT17_Jinx": ("징크스", 5),
+    "TFT17_Milio": ("밀리오", 5), "TFT17_Samira": ("사미라", 5),
+    "TFT17_Silco": ("실코", 5), "TFT17_Xerath": ("제라스", 5),
+    "TFT17_Viktor": ("빅토르", 5),
+    # 추가 챔프 (세트17 확장 / 매핑 누락분)
+    "TFT17_Aatrox": ("아트록스", 4), "TFT17_Caitlyn": ("케이틀린", 3),
+    "TFT17_Gnar": ("나르", 2), "TFT17_Gragas": ("그라가스", 2),
+    "TFT17_Illaoi": ("일라오이", 3), "TFT17_Leona": ("레오나", 2),
+    "TFT17_Maokai": ("마오카이", 1), "TFT17_Nunu": ("누누", 2),
+    "TFT17_Pantheon": ("판테온", 4), "TFT17_Rhaast": ("라아스트", 4),
+    "TFT17_Riven": ("리븐", 3), "TFT17_Ornn": ("오른", 4),
+    "TFT17_Rammus": ("람머스", 2), "TFT17_Shen": ("쉔", 3),
+}
+
+# 코스트별 이모지
+COST_EMOJI = {1: "⬜", 2: "🟩", 3: "🟦", 4: "🟪", 5: "🟨"}
+
+# TFT 아이템 한글 매핑
+ITEM_NAMES = {
+    # 완성 아이템
+    "TFT_Item_BFSword": "B.F. 대검", "TFT_Item_ChainVest": "쇠사슬 조끼",
+    "TFT_Item_GiantsBelt": "거인의 허리띠", "TFT_Item_NeedlesslyLargeRod": "쓸데없이 큰 지팡이",
+    "TFT_Item_NegatronCloak": "음전자 망토", "TFT_Item_RecurveBow": "곡궁",
+    "TFT_Item_SparringGloves": "연습용 장갑", "TFT_Item_Spatula": "뒤집개",
+    "TFT_Item_TearOfTheGoddess": "여신의 눈물",
+    # 조합 아이템
+    "TFT_Item_ArchangelsStaff": "대천사의 지팡이",
+    "TFT_Item_Bloodthirster": "피바라기",
+    "TFT_Item_BlueBuff": "푸른 파수꾼",
+    "TFT_Item_BrambleVest": "덤불 조끼",
+    "TFT_Item_Crownguard": "왕관수호대",
+    "TFT_Item_Deathblade": "죽음의 검",
+    "TFT_Item_DragonsClaw": "용의 발톱",
+    "TFT_Item_EdgeOfNight": "밤의 끝자락",
+    "TFT_Item_EmblemsEmblem": "상징",
+    "TFT_Item_GargoyleStoneplate": "가고일 돌갑옷",
+    "TFT_Item_GiantSlayer": "거인 학살자",
+    "TFT_Item_GuardianAngel": "수호 천사",
+    "TFT_Item_GuinsoosRageblade": "구인수의 격노검",
+    "TFT_Item_HandOfJustice": "정의의 손",
+    "TFT_Item_HextechGunblade": "마법공학 총검",
+    "TFT_Item_InfinityEdge": "무한의 대검",
+    "TFT_Item_IonicSpark": "이온 충격기",
+    "TFT_Item_JeweledGauntlet": "보석 건틀릿",
+    "TFT_Item_LastWhisper": "최후의 속삭임",
+    "TFT_Item_Leviathan": "리바이어던",
+    "TFT_Item_LocketOfTheIronSolari": "솔라리의 펜던트",
+    "TFT_Item_Morellonomicon": "모렐로노미콘",
+    "TFT_Item_NashorsTooth": "내셔의 이빨",
+    "TFT_Item_ProtectorsVow": "수호자의 맹세",
+    "TFT_Item_Quicksilver": "수은",
+    "TFT_Item_RabadonsDeathcap": "라바돈의 죽음모자",
+    "TFT_Item_RedBuff": "붉은 파수꾼",
+    "TFT_Item_Redemption": "구원",
+    "TFT_Item_RunaansHurricane": "루난의 허리케인",
+    "TFT_Item_SpearOfShojin": "쇼진의 창",
+    "TFT_Item_StatikkShiv": "스태틱의 단검",
+    "TFT_Item_SteadfastHeart": "굳건한 심장",
+    "TFT_Item_SteraksGage": "스테락의 도전",
+    "TFT_Item_SunfireCape": "태양불꽃 망토",
+    "TFT_Item_ThiefsGloves": "도둑의 장갑",
+    "TFT_Item_TitansResolve": "거인의 결의",
+    "TFT_Item_WarmogsArmor": "워모그의 갑옷",
+    "TFT_Item_ZekesHerald": "지크의 전령",
+    "TFT_Item_Zephyr": "서풍",
+    "TFT_Item_ZzRotPortal": "즈롯 차원문",
+    # 추가 아이템 (세트17 신규 / 누락분)
+    "TFT_Item_AdaptiveHelm": "적응형 투구",
+    "TFT_Item_FrozenHeart": "얼어붙은 심장",
+    "TFT_Item_MadredsBloodrazor": "매드레드의 피바라기",
+    "TFT_Item_PowerGauntlet": "힘의 건틀릿",
+    "TFT17_Item_MadredsBloodrazor": "매드레드의 피바라기",
+    "TFT17_Item_PowerGauntlet": "힘의 건틀릿",
+    "TFT17_Item_AdaptiveHelm": "적응형 투구",
+    "TFT17_Item_FrozenHeart": "얼어붙은 심장",
+    "TFT17_Item_PsyOpsDroneMod": "사이옵스 드론",
+}
+
+# TFT 세트17 시너지 한글 매핑
+TRAIT_NAMES = {
+    "TFT17_Stargazer": "별돌보미", "TFT17_Emissary": "전달자",
+    "TFT17_Oracle": "운명술사", "TFT17_ChronoBreaker": "시간 균열자",
+    "TFT17_NOVA": "N.O.V.A.", "TFT17_Slayer": "학살자",
+    "TFT17_Techno": "테크노", "TFT17_Bruiser": "싸움꾼",
+    "TFT17_Bastion": "보루", "TFT17_Invoker": "기원사",
+    "TFT17_Marksman": "명사수", "TFT17_Sorcerer": "마법사",
+    "TFT17_Assassin": "암살자", "TFT17_Vanguard": "선봉대",
+    "TFT17_Protector": "수호자", "TFT17_Rebel": "반군",
+    "TFT17_Rapidfire": "속사포", "TFT17_Aegis": "방패술사",
+    "TFT17_Artillerist": "포병", "TFT17_Duelist": "결투가",
+    "TFT17_Executioner": "처형자", "TFT17_Guardian": "수호자",
+    "TFT17_Mystic": "신비술사", "TFT17_Redeemer": "구원자",
+    "TFT17_Shapeshifter": "변신술사",
+    # 추가 시너지 (세트17 확장 / 누락분)
+    "TFT17_ManaTrait": "마나",
+    "TFT17_APTrait": "주문력",
+    "TFT17_RangedTrait": "원거리",
+    "TFT17_HPTank": "체력탱",
+    "TFT17_ResistTank": "저항탱",
+    "TFT17_ShieldTank": "방패탱",
+    "TFT17_DRX": "DRX",
+    "TFT17_ADMIN": "관리자",
+    "TFT17_Astronaut": "우주비행사",
+    "TFT17_Fateweaver": "운명술사",
+    "TFT17_PsyOps": "사이옵스",
+    "TFT17_Timebreaker": "시간 균열자",
+    # 고유 특성
+    "TFT17_MorganaUniqueTrait": "모르가나 고유",
+    "TFT17_RhaastUniqueTrait": "라아스트 고유",
+    "TFT17_ShenUniqueTrait": "쉔 고유",
+    "TFT17_MissFortuneUniqueTrait": "미스 포츈 고유",
+    "TFT17_TahmKenchUniqueTrait": "탐 켄치 고유",
+}
+
+# 시너지 스타일 (style → 등급)
+TRAIT_STYLE = {1: "🥉", 2: "🥈", 3: "🥇", 4: "💠"}
+
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -496,6 +647,8 @@ def get_optimal_reroll_level(target_cost: int) -> dict:
 
     for lvl in range(3, 10):
         result = calc_reroll_chance(lvl, target_cost)
+        if "error" in result:
+            continue
         all_levels[lvl] = result
         if result["shop_chance_pct"] > best_chance:
             best_chance = result["shop_chance_pct"]
@@ -545,6 +698,16 @@ def build_reroll_info_for_deck(deck_stats: dict, deck_data: dict = None) -> str:
     return "\n".join(lines) if lines else ""
 
 
+def _find_deck_url(deck_name: str, decks: list[dict]) -> str:
+    """덱 이름으로 raw deck을 찾아 롤체지지 URL을 반환한다."""
+    for d in decks:
+        if get_deck_name(d) == deck_name:
+            key = d.get("key", d.get("deckKey", ""))
+            if key:
+                return f"https://lolchess.gg/decks/{key}?hl=ko"
+    return "https://lolchess.gg/decks?hl=ko"
+
+
 # ── 분석 & 알림 ──────────────────────────────────────────────────────────────
 
 def load_state() -> dict:
@@ -564,6 +727,10 @@ def save_state(state: dict):
 
 def analyze_changes(current_data: dict, prev_state: dict) -> list[dict]:
     """현재 데이터와 이전 상태를 비교하여 알림 목록을 생성한다."""
+    # 첫 실행이면 비교 대상이 없으므로 알림 없이 리턴 (요약만 전송)
+    if not prev_state:
+        return []
+
     alerts = []
     meta_info = current_data["meta_info"]
     decks = current_data["decks"]
@@ -584,14 +751,8 @@ def analyze_changes(current_data: dict, prev_state: dict) -> list[dict]:
             "priority": "high",
         })
 
-    # 2. 업데이트 시간 변경
-    if prev_meta.get("updatedAt") and meta_info["updatedAt"] != prev_meta["updatedAt"]:
-        alerts.append({
-            "type": "data_update",
-            "title": "📊 롤체지지 데이터 갱신됨",
-            "message": f"최신 데이터 반영 시각: {meta_info['updatedAt']}",
-            "priority": "info",
-        })
+    # 2. 업데이트 시간 변경 — 로그만 남기고 별도 알림은 보내지 않음
+    # (매 30분~1시간마다 갱신되므로 알림이 너무 잦아짐)
 
     # 현재 덱 통계 수집
     all_stats = []
@@ -814,7 +975,187 @@ def analyze_changes(current_data: dict, prev_state: dict) -> list[dict]:
     return alerts
 
 
+# ── 덱 상세 임베드 ───────────────────────────────────────────────────────────
+
+def _champ_name(key: str) -> str:
+    """챔피언 API key를 한글 이름으로 변환한다."""
+    if key in CHAMPION_DATA:
+        return CHAMPION_DATA[key][0]
+    # 매핑에 없으면 key에서 추출 (TFT17_Lulu → Lulu)
+    name = key.split("_", 1)[-1] if "_" in key else key
+    # CamelCase 분리
+    name = re.sub(r'([a-z])([A-Z])', r'\1 \2', name)
+    return name
+
+
+def _champ_cost(key: str) -> int:
+    """챔피언 API key에서 코스트를 반환한다."""
+    if key in CHAMPION_DATA:
+        return CHAMPION_DATA[key][1]
+    return 0
+
+
+def _item_name(key: str) -> str:
+    """아이템 API key를 한글 이름으로 변환한다."""
+    if key in ITEM_NAMES:
+        return ITEM_NAMES[key]
+    # 언더스코어/공백 변형 시도
+    normalized = key.replace(" ", "").replace("_", "")
+    for k, v in ITEM_NAMES.items():
+        if k.replace("_", "") == normalized:
+            return v
+    # 매핑에 없으면 key에서 추출
+    name = key.replace("TFT_Item_", "").replace("TFT17_Item_", "")
+    name = re.sub(r'([a-z])([A-Z])', r'\1 \2', name)
+    return name
+
+
+def _trait_name(key: str) -> str:
+    """시너지 API key를 한글 이름으로 변환한다."""
+    if key in TRAIT_NAMES:
+        return TRAIT_NAMES[key]
+    name = key.split("_", 1)[-1] if "_" in key else key
+    name = re.sub(r'([a-z])([A-Z])', r'\1 \2', name)
+    return name
+
+
+def build_deck_detail_embed(deck_raw: dict) -> dict:
+    """덱의 챔프 구성, 아이템, 시너지를 보기 좋게 임베드로 만든다."""
+    deck_name = deck_raw.get("deckNameKo", deck_raw.get("deckNameEn", ""))
+    deck_obj = deck_raw.get("deck", {})
+    champions = deck_obj.get("champions", [])
+    traits = deck_obj.get("traits", [])
+
+    # ── 챔프를 코어순 → 코스트순으로 정렬 ──
+    sorted_champs = sorted(champions, key=lambda c: (c.get("coreRank", 99), -_champ_cost(c.get("key", ""))))
+
+    # 캐리 (coreRank 1~4, 아이템 있는 챔프)
+    carry_lines = []
+    support_names = []
+
+    for champ in sorted_champs:
+        key = champ.get("key", "")
+        name = _champ_name(key)
+        cost = _champ_cost(key)
+        cost_emoji = COST_EMOJI.get(cost, "▪️")
+        items = champ.get("items", [])
+        core_rank = champ.get("coreRank", 99)
+
+        if items and core_rank <= 10:
+            # 캐리 챔프 — 아이템 표시
+            item_str = " + ".join(_item_name(i) for i in items)
+            star = "⭐" if core_rank <= 2 else ""
+            carry_lines.append(
+                f"{cost_emoji} **{name}** ({cost}코) {star}\n"
+                f"  └ {item_str}"
+            )
+        else:
+            support_names.append(f"{cost_emoji}{name}")
+
+    # ── 시너지 정렬 (높은 등급 먼저) ──
+    sorted_traits = sorted(traits, key=lambda t: -t.get("style", 0))
+    trait_lines = []
+    for trait in sorted_traits:
+        style_emoji = TRAIT_STYLE.get(trait.get("style", 1), "▪️")
+        name = _trait_name(trait.get("key", ""))
+        num = trait.get("numUnits", 0)
+        trait_lines.append(f"{style_emoji} {name} ({num})")
+
+    # ── 운영 가이드 ──
+    # 캐리 코스트 기반 리롤 타이밍
+    carry_costs = []
+    for champ in sorted_champs:
+        if champ.get("coreRank", 99) <= 4 and champ.get("items"):
+            carry_costs.append(_champ_cost(champ.get("key", "")))
+
+    reroll_guide = ""
+    carry_costs = [c for c in carry_costs if 1 <= c <= 5]
+    if carry_costs:
+        main_cost = max(set(carry_costs), key=carry_costs.count)  # 가장 많은 코스트
+        opt = get_optimal_reroll_level(main_cost)
+        lvl = opt["optimal_level"]
+        info = opt["all_levels"].get(lvl, {})
+        reroll_guide = (
+            f"**리롤 타이밍**: 레벨 {lvl}에서 {main_cost}코 캐리 리롤\n"
+            f"상점 확률 {info.get('shop_chance_pct', 0):.1f}% | "
+            f"50%: {info.get('rolls_for_50pct', '?')}롤({info.get('gold_for_50pct', '?')}G)"
+        )
+
+    # ── 임베드 구성 ──
+    stats = get_deck_stats(deck_raw)
+    verdict_bar = _verdict_bar(stats["top4_rate"])
+    verdict = _verdict_label(stats["top4_rate"])
+
+    fields = []
+
+    # 캐리 챔프 + 아이템
+    if carry_lines:
+        fields.append({
+            "name": "🗡️ 캐리 & 아이템",
+            "value": "\n".join(carry_lines),
+            "inline": False,
+        })
+
+    # 서포트 챔프
+    if support_names:
+        fields.append({
+            "name": "👥 서포트",
+            "value": " ".join(support_names),
+            "inline": True,
+        })
+
+    # 시너지
+    if trait_lines:
+        fields.append({
+            "name": "🔗 시너지",
+            "value": "\n".join(trait_lines),
+            "inline": True,
+        })
+
+    # 성적
+    fields.append({
+        "name": "📊 성적",
+        "value": (
+            f"```\n"
+            f"순방률   {verdict_bar} {stats['top4_rate']:.1f}%\n"
+            f"평균등수  {stats['avg_placement']:.2f}등\n"
+            f"승률     {stats['win_rate']:.1f}%\n"
+            f"판수     {stats['play_count']:,}판\n"
+            f"```\n"
+            f"판정: {verdict}"
+        ),
+        "inline": False,
+    })
+
+    # 리롤 가이드
+    if reroll_guide:
+        fields.append({
+            "name": "🎰 운영 가이드",
+            "value": reroll_guide,
+            "inline": False,
+        })
+
+    # 코스트별 색상
+    main_carry_cost = carry_costs[0] if carry_costs else 3
+    color_map = {1: 0x9E9E9E, 2: 0x4CAF50, 3: 0x2196F3, 4: 0x9C27B0, 5: 0xFFC107}
+
+    return {
+        "title": f"📖 {deck_name} 상세 가이드",
+        "color": color_map.get(main_carry_cost, 0x1E90FF),
+        "fields": fields,
+        "footer": {"text": f"롤체지지 기준 | {datetime.now().strftime('%Y-%m-%d %H:%M')}"},
+    }
+
+
 # ── Discord 전송 ─────────────────────────────────────────────────────────────
+
+def _deck_url(deck_raw: dict) -> str:
+    """덱의 롤체지지 상세 페이지 URL을 생성한다."""
+    key = deck_raw.get("key", deck_raw.get("deckKey", ""))
+    if key:
+        return f"https://lolchess.gg/decks/{key}?hl=ko"
+    return "https://lolchess.gg/decks?hl=ko"
+
 
 def _verdict_bar(rate: float) -> str:
     """순방률을 시각적 게이지 바로 표현한다."""
@@ -895,6 +1236,17 @@ def build_summary_embeds(meta_info: dict, all_stats: list[dict], watched_stats: 
 
             reroll_info = build_reroll_info_for_deck(stats)
 
+            # 롤체지지 상세 페이지 링크 찾기
+            deck_link = ""
+            if decks_raw:
+                for entry in WATCHED_DECKS.get(category, []):
+                    if entry["label"] == label:
+                        for d in decks_raw:
+                            if deck_matches(d, entry):
+                                deck_link = _deck_url(d)
+                                break
+                        break
+
             value = (
                 f"```\n"
                 f"순방률   {bar} {stats['top4_rate']:.1f}%\n"
@@ -906,6 +1258,8 @@ def build_summary_embeds(meta_info: dict, all_stats: list[dict], watched_stats: 
             )
             if reroll_info:
                 value += f"🎰 {reroll_info}\n"
+            if deck_link:
+                value += f"[📖 조합·아이템·운영법 보기]({deck_link})\n"
 
             deck_fields.append({
                 "name": f"{emoji} [{cat_name}] {label}",
@@ -1002,8 +1356,18 @@ def build_alert_embed(alert: dict) -> dict:
         "low_avg_deck": "→ 평균등수가 좋은 덱이에요. 체크해보세요.",
     }
 
+    # 덱 관련 알림이면 롤체지지 링크 추가
+    deck_alert_types = {"better_ad_deck", "new_strong_deck", "new_reroll_deck",
+                        "new_top3", "low_avg_deck", "special_deck_good",
+                        "main_deck_warning", "deck_disappeared"}
+
     action = action_guide.get(alert["type"], "")
     description = alert["message"]
+
+    if alert["type"] in deck_alert_types:
+        deck_url = alert.get("deck_url", "https://lolchess.gg/decks?hl=ko")
+        description += f"\n[📖 조합·아이템·운영법 보기]({deck_url})"
+
     if action:
         description += f"\n\n**다음 행동**\n{action}"
 
@@ -1214,6 +1578,11 @@ def main():
 
     if alerts:
         for alert in alerts:
+            # 덱 관련 알림이면 덱 URL 자동 추가
+            if "deck_url" not in alert and decks:
+                match = re.search(r'\*\*(.+?)\*\*', alert.get("message", ""))
+                if match:
+                    alert["deck_url"] = _find_deck_url(match.group(1), decks)
             embeds.append(build_alert_embed(alert))
 
     # 첫 실행, force-alert, 패치 직후 집중모드면 항상 현황 요약 전송
