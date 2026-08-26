@@ -74,19 +74,26 @@ def load_tft_data():
         resp.raise_for_status()
         data = resp.json()
 
-        # 최신 세트 찾기 (TFT17 등)
+        # 모든 세트의 챔프/시너지 로드 (세트간 챔프가 겹칠 수 있으므로 전부 등록)
         sets = data.get("sets", {})
-        for set_num in sorted(sets.keys(), key=int, reverse=True):
+        total_champs = 0
+        total_traits = 0
+        for set_num in sorted(sets.keys(), key=int):
             champs = sets[set_num].get("champions", [])
-            tft_champs = [c for c in champs if c.get("apiName", "").startswith("TFT") and c.get("cost", 0) <= 5 and c.get("cost", 0) >= 1]
-            if len(tft_champs) >= 30:
-                for c in tft_champs:
-                    CHAMPION_DATA[c["apiName"]] = (c.get("name", ""), c.get("cost", 0))
-                # 시너지도 같은 세트에서
-                for t in sets[set_num].get("traits", []):
-                    TRAIT_NAMES[t.get("apiName", "")] = t.get("name", "")
-                logger.info(f"세트 {set_num} 데이터 로드: 챔프 {len(tft_champs)}개, 시너지 {len(sets[set_num].get('traits', []))}개")
-                break
+            for c in champs:
+                api = c.get("apiName", "")
+                cost = c.get("cost", 0)
+                name = c.get("name", "")
+                if api and name and 1 <= cost <= 5:
+                    CHAMPION_DATA[api] = (name, cost)
+                    total_champs += 1
+            for t in sets[set_num].get("traits", []):
+                api = t.get("apiName", "")
+                name = t.get("name", "")
+                if api and name:
+                    TRAIT_NAMES[api] = name
+                    total_traits += 1
+        logger.info(f"챔프 {total_champs}개, 시너지 {total_traits}개 로드 완료")
 
         # 아이템 (전체)
         for item in data.get("items", []):
@@ -794,21 +801,78 @@ def analyze_changes(current_data: dict, prev_state: dict) -> list[dict]:
 
 # ── 덱 상세 임베드 ───────────────────────────────────────────────────────────
 
+# 챔프 영문 → 한글 폴백 매핑 (커뮤니티 드래곤에 없는 챔프용)
+_CHAMP_KO_FALLBACK = {
+    "Ahri": "아리", "Alistar": "알리스타", "Alune": "알룬", "Amumu": "아무무",
+    "Aphelios": "아펠리오스", "Ashe": "애쉬", "Azir": "아지르",
+    "Caitlyn": "케이틀린", "Cassiopeia": "카시오페아",
+    "Diana": "다이애나", "Draven": "드레이븐",
+    "ElderDragon": "장로 드래곤", "Elder Dragon": "장로 드래곤",
+    "Elise": "엘리스", "Ezreal": "이즈리얼",
+    "Fiddlesticks": "피들스틱", "GnarSmall": "꼬마 나르", "Gnar Small": "꼬마 나르",
+    "Hecarim": "헤카림", "Ivern": "아이번",
+    "Karma": "카르마", "Kayle": "케일", "Kennen": "케넨",
+    "Kobuko": "코부코", "KogMaw": "코그모",
+    "LeBlanc": "르블랑", "Le Blanc": "르블랑", "Leona": "레오나", "Lillia": "릴리아",
+    "Malphite": "말파이트", "Maokai": "마오카이", "MasterYi": "마스터 이",
+    "Morgana": "모르가나", "Nidalee": "니달리",
+    "Ornn": "오른", "Rakan": "라칸", "Rammus": "람머스",
+    "RekSai": "렉사이", "Rengar": "렝가",
+    "Sejuani": "세주아니", "Sentry": "파수꾼", "Sentinel": "감시자",
+    "Sett": "세트", "Shen": "쉔", "Sivir": "시비르", "Soraka": "소라카",
+    "Taric": "타릭", "Teemo": "티모", "Tristana": "트리스타나",
+    "Varus": "바루스", "Veigar": "베이가", "Vi": "바이",
+    "Warwick": "워윅", "Xayah": "자야", "Yorick": "요릭",
+    "Yunara": "유나라", "Zyra": "자이라",
+    "Brambleback": "덤불등", "CrimsonRaptor": "진홍 칼부리", "Gromp": "두꺼비",
+    "Krug": "돌거북", "Murkwolf": "큰 늑대", "Scuttlecrab": "바위게",
+}
+
+
+def _normalize_champ_key(key: str) -> str:
+    """DA_18_Sivir, DA_Draven18 등 다양한 키 형식에서 챔프 이름을 추출한다."""
+    name = key
+    # DA_ 접두사 제거
+    name = re.sub(r'^DA_', '', name)
+    # 18_ 접두사 또는 18 접미사 제거
+    name = re.sub(r'^\d+_', '', name)
+    name = re.sub(r'\d+$', '', name)
+    # _AD, _AP 접미사 제거
+    name = re.sub(r'_(AD|AP)$', '', name)
+    return name.strip('_')
+
+
 def _champ_name(key: str) -> str:
     """챔피언 API key를 한글 이름으로 변환한다."""
     if key in CHAMPION_DATA:
         return CHAMPION_DATA[key][0]
-    # 매핑에 없으면 key에서 추출 (TFT17_Lulu → Lulu)
-    name = key.split("_", 1)[-1] if "_" in key else key
-    # CamelCase 분리
-    name = re.sub(r'([a-z])([A-Z])', r'\1 \2', name)
-    return name
+    # 키 정규화 후 다시 검색
+    norm = _normalize_champ_key(key)
+    for api, (name, cost) in CHAMPION_DATA.items():
+        api_norm = _normalize_champ_key(api)
+        if api_norm.lower() == norm.lower():
+            return name
+    # 폴백 매핑
+    if norm in _CHAMP_KO_FALLBACK:
+        return _CHAMP_KO_FALLBACK[norm]
+    # CamelCase 분리 후 폴백
+    split_name = re.sub(r'([a-z])([A-Z])', r'\1 \2', norm)
+    for en, ko in _CHAMP_KO_FALLBACK.items():
+        if en.lower() == split_name.lower() or en.lower() == norm.lower():
+            return ko
+    return split_name
 
 
 def _champ_cost(key: str) -> int:
     """챔피언 API key에서 코스트를 반환한다."""
     if key in CHAMPION_DATA:
         return CHAMPION_DATA[key][1]
+    # 키 정규화 후 검색
+    norm = _normalize_champ_key(key)
+    for api, (name, cost) in CHAMPION_DATA.items():
+        api_norm = _normalize_champ_key(api)
+        if api_norm.lower() == norm.lower():
+            return cost
     return 0
 
 
