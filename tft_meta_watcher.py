@@ -494,7 +494,7 @@ def get_optimal_reroll_level(target_cost: int) -> dict:
     best_chance = 0
     all_levels = {}
 
-    for lvl in range(3, 12):
+    for lvl in range(3, 10):
         result = calc_reroll_chance(lvl, target_cost)
         all_levels[lvl] = result
         if result["shop_chance_pct"] > best_chance:
@@ -1061,7 +1061,7 @@ def main():
         print(f"{'레벨':>4} | {'코스트 확률':>8} | {'상점 확률':>8} | {'50% 롤':>6} | {'50% 골드':>7} | {'80% 롤':>6}")
         print(f"{'-'*60}")
         optimal = get_optimal_reroll_level(cost)
-        for lvl in range(3, 12):
+        for lvl in range(3, 10):
             info = optimal["all_levels"].get(lvl, {})
             marker = " ◀ 최적" if lvl == optimal["optimal_level"] else ""
             print(
