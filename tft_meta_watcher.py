@@ -981,8 +981,116 @@ def generate_html_report(meta_info, all_stats, watched_stats, decks_raw):
                 if vc2:
                     mc = max(set(vc2),key=vc2.count); o=get_optimal_reroll_level(mc); lv=o["optimal_level"]; inf=o["all_levels"].get(lv,{})
                     rr = f'<div class="reroll-guide">🎰 <strong>리롤:</strong> Lv.{lv}에서 {mc}코 캐리 — 상점 {inf.get("shop_chance_pct",0):.1f}% | 50%: {inf.get("rolls_for_50pct","?")}롤({inf.get("gold_for_50pct","?")}G)</div>'
+                # 운영 가이드 자동 생성 (캐리 코스트 기반)
+                op_guide = ""
+                if vc2:
+                    mc = max(set(vc2), key=vc2.count)
+                    carry_names = []
+                    tank_names = []
+                    for c in champs:
+                        cr = c.get("coreRank", 99)
+                        nm = _champ_name(c.get("key",""))
+                        if cr <= 2: carry_names.append(nm)
+                        elif cr <= 4 and c.get("items"): tank_names.append(nm)
+
+                    carry_str = ", ".join(carry_names) if carry_names else "메인 캐리"
+                    tank_str = ", ".join(tank_names) if tank_names else "탱커"
+
+                    if mc <= 2:  # 1~2코 리롤덱
+                        op_guide = f'''
+            <div class="op-guide">
+              <h4 class="col-title">운영 가이드</h4>
+              <div class="op-phase">
+                <div class="phase-badge phase-early">초반 (1~3스테이지)</div>
+                <div class="phase-text">
+                  <strong>{carry_str}</strong> 일단 1장이라도 잡으면서 연패/연승 세팅<br>
+                  아이템 조합재료 우선 수급 (회전판에서 캐리 아이템 재료 먼저)<br>
+                  이자 골드 10골 이상 유지하면서 레벨 올리지 말고 돈 모으기
+                </div>
+              </div>
+              <div class="op-phase">
+                <div class="phase-badge phase-mid">중반 (3-2 ~ 4-1)</div>
+                <div class="phase-text">
+                  <strong>레벨 {max(5, mc+3)}</strong>에서 멈추고 올인 리롤<br>
+                  <strong>{carry_str}</strong> 3성 만드는 게 최우선<br>
+                  {tank_str} 2성도 같이 챙기기<br>
+                  50골 이상이면 리롤 시작, 30골 밑으로 떨어지면 멈추기
+                </div>
+              </div>
+              <div class="op-phase">
+                <div class="phase-badge phase-late">후반 (5스테이지~)</div>
+                <div class="phase-text">
+                  캐리 3성 완성됐으면 레벨 올려서 5코 유닛 추가<br>
+                  못 만들었으면 남은 골드로 한번 더 리롤 후 레벨업<br>
+                  포지셔닝: 캐리를 상대 어쌔신 반대편에 배치
+                </div>
+              </div>
+            </div>'''
+                    elif mc == 3:  # 3코 리롤덱
+                        opt = get_optimal_reroll_level(3)
+                        rlvl = opt["optimal_level"]
+                        op_guide = f'''
+            <div class="op-guide">
+              <h4 class="col-title">운영 가이드</h4>
+              <div class="op-phase">
+                <div class="phase-badge phase-early">초반 (1~3스테이지)</div>
+                <div class="phase-text">
+                  <strong>{carry_str}</strong> 뜨면 잡아두고, 안 뜨면 강한 보드로 연승 추구<br>
+                  아이템 재료 수급 우선 (캐리 아이템 → 탱커 아이템 순서)<br>
+                  이자 관리하면서 자연 레벨업, 경험치 사지 않기
+                </div>
+              </div>
+              <div class="op-phase">
+                <div class="phase-badge phase-mid">중반 (3-2 ~ 4-5)</div>
+                <div class="phase-text">
+                  <strong>레벨 {rlvl}</strong>에서 리롤 시작 (3코 확률 최고 구간)<br>
+                  <strong>{carry_str}</strong> 2성 필수, 여유되면 3성 도전<br>
+                  {tank_str} 2성 + 아이템 장착<br>
+                  체력 50 이하면 즉시 리롤, 여유 있으면 이자 태우면서 천천히
+                </div>
+              </div>
+              <div class="op-phase">
+                <div class="phase-badge phase-late">후반 (5스테이지~)</div>
+                <div class="phase-text">
+                  캐리 2성 + 탱커 2성 완성 후 레벨 8~9로 올려서 5코 추가<br>
+                  상대 조합 보고 포지셔닝 조정 (어쌔신 있으면 캐리 뒤로)<br>
+                  남은 골드로 업그레이드 or 5코 2성 노리기
+                </div>
+              </div>
+            </div>'''
+                    else:  # 4~5코 레벨덱 (패스트 8)
+                        op_guide = f'''
+            <div class="op-guide">
+              <h4 class="col-title">운영 가이드</h4>
+              <div class="op-phase">
+                <div class="phase-badge phase-early">초반 (1~3스테이지)</div>
+                <div class="phase-text">
+                  강한 2코 유닛으로 연승 세팅 (체력 아끼기)<br>
+                  아이템 재료 수급 — <strong>{carry_str}</strong> 아이템 우선<br>
+                  2성 조합으로 보드 강하게 유지, 경험치는 아직 안 삼
+                </div>
+              </div>
+              <div class="op-phase">
+                <div class="phase-badge phase-mid">중반 (3-2 ~ 4-5)</div>
+                <div class="phase-text">
+                  <strong>패스트 레벨 8</strong>이 목표 — 4-2까지 레벨 8 도달<br>
+                  이자 깨지 않는 선에서 경험치 구매 (매 라운드 4골 씩)<br>
+                  중간에 뜨는 <strong>{carry_str}</strong> 잡아두기<br>
+                  {tank_str} 넣어서 시너지 맞추면서 버티기
+                </div>
+              </div>
+              <div class="op-phase">
+                <div class="phase-badge phase-late">후반 (5스테이지~)</div>
+                <div class="phase-text">
+                  레벨 8에서 <strong>{carry_str}</strong> 2성 + 핵심 시너지 완성 리롤<br>
+                  완성되면 레벨 9 올려서 5코 추가 유닛 넣기<br>
+                  체력 여유 있으면 레벨 9 먼저, 없으면 레벨 8에서 올인
+                </div>
+              </div>
+            </div>'''
+
                 dk = raw.get("key",""); du = f"https://lolchess.gg/decks/{dk}?hl=ko" if dk else "#"
-                secs.append(f'<div class="guide-card"><div class="guide-header"><span class="guide-title">{esc(label)}</span><a class="deck-link" href="{du}" target="_blank">롤체지지 →</a></div><div class="guide-body"><div class="guide-col"><h4 class="col-title">챔피언 구성</h4><div class="champ-list">{"".join(ch_rows)}</div></div><div class="guide-col"><h4 class="col-title">시너지</h4><div class="trait-list">{"".join(tr_rows)}</div>{rr}</div></div></div>')
+                secs.append(f'<div class="guide-card"><div class="guide-header"><span class="guide-title">{esc(label)}</span><a class="deck-link" href="{du}" target="_blank">롤체지지 →</a></div><div class="guide-body"><div class="guide-col"><h4 class="col-title">챔피언 구성</h4><div class="champ-list">{"".join(ch_rows)}</div></div><div class="guide-col"><h4 class="col-title">시너지</h4><div class="trait-list">{"".join(tr_rows)}</div>{rr}</div></div>{op_guide}</div>')
         return "\n".join(secs) if secs else '<p class="no-data">없음</p>'
 
     def top5_fn():
@@ -997,7 +1105,7 @@ def generate_html_report(meta_info, all_stats, watched_stats, decks_raw):
             rows.append(f'<tr><td>{cn[c]}</td><td><strong>Lv.{lv}</strong></td><td>{inf.get("shop_chance_pct",0):.1f}%</td><td>{inf.get("rolls_for_50pct","-")}롤 / {inf.get("gold_for_50pct","-")}G</td><td>{inf.get("rolls_for_80pct","-")}롤</td></tr>')
         return "\n".join(rows)
 
-    css = """*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}:root{--bg:#0e1117;--surface:#1a1f2e;--surface2:#242a3a;--border:#2e3650;--text:#e8eaf0;--text-muted:#8892aa;--accent:#4f7fff;--cost1:#9e9e9e;--cost2:#4caf50;--cost3:#2196f3;--cost4:#9c27b0;--cost5:#ffc107;--strong:#00c853;--good:#69f0ae;--normal:#ffeb3b;--caution:#ff9800;--weak:#ff5722;--replace:#f44336;--trait1:#cd7f32;--trait2:#c0c0c0;--trait3:#ffd700;--trait4:#b9f2ff;--radius:10px;--shadow:0 2px 12px rgba(0,0,0,.45)}body{background:var(--bg);color:var(--text);font-family:'Segoe UI','Noto Sans KR',Arial,sans-serif;font-size:15px;line-height:1.6;-webkit-text-size-adjust:100%}a{color:var(--accent);text-decoration:none}.site-header{background:linear-gradient(135deg,#1a1f2e,#0e1117);border-bottom:1px solid var(--border);padding:24px 16px 20px;text-align:center}.site-header h1{font-size:clamp(1.3rem,4vw,2rem);font-weight:800}.header-meta{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:10px}.header-chip{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:.78rem;color:var(--text-muted)}.header-chip strong{color:var(--text)}.container{max-width:960px;margin:0 auto;padding:16px 12px 40px}.section{margin-bottom:32px}.section-title{font-size:1rem;font-weight:700;border-left:3px solid var(--accent);padding-left:10px;margin-bottom:14px}.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}.deck-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow)}.deck-card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}.deck-name{font-weight:700;font-size:.93rem}.cat-badge{border-radius:4px;padding:2px 7px;font-size:.7rem;font-weight:700}.badge-main{background:#1a3a6b;color:#90caf9}.badge-ad{background:#3a1a1a;color:#ef9a9a}.badge-special{background:#2a1a3a;color:#ce93d8}.gauge-wrap{display:flex;align-items:center;gap:8px;margin-bottom:8px}.gauge-bar{flex:1;background:var(--surface2);border-radius:4px;height:8px;overflow:hidden}.gauge-fill{height:100%;border-radius:4px}.gauge-label{font-size:.8rem;font-weight:700;min-width:40px;text-align:right}.verdict-strong-fill{background:var(--strong)}.verdict-good-fill{background:var(--good)}.verdict-normal-fill{background:var(--normal)}.verdict-caution-fill{background:var(--caution)}.verdict-weak-fill{background:var(--weak)}.verdict-replace-fill{background:var(--replace)}.deck-stats{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:10px}.stat-item{display:flex;justify-content:space-between;background:var(--surface2);border-radius:6px;padding:4px 8px;font-size:.78rem}.stat-label{color:var(--text-muted)}.stat-val{font-weight:700}.verdict-row{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:5px}.verdict-badge{font-size:.76rem;font-weight:700;padding:2px 8px;border-radius:4px}.verdict-strong{background:#003322;color:var(--strong)}.verdict-good{background:#002211;color:var(--good)}.verdict-normal{background:#332e00;color:var(--normal)}.verdict-caution{background:#332200;color:var(--caution)}.verdict-weak{background:#331100;color:var(--weak)}.verdict-replace{background:#330000;color:var(--replace)}.deck-link{font-size:.76rem;color:var(--accent)}.guide-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:14px;overflow:hidden;box-shadow:var(--shadow)}.guide-header{display:flex;justify-content:space-between;align-items:center;background:var(--surface2);padding:10px 14px;border-bottom:1px solid var(--border)}.guide-title{font-weight:700;font-size:.93rem}.guide-body{display:grid;grid-template-columns:1fr 1fr}@media(max-width:640px){.guide-body{grid-template-columns:1fr}.guide-col+.guide-col{border-left:none!important;border-top:1px solid var(--border)}}.guide-col{padding:12px 14px}.guide-col+.guide-col{border-left:1px solid var(--border)}.col-title{font-size:.76rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);letter-spacing:.5px;margin-bottom:8px}.champ-list{display:flex;flex-direction:column;gap:4px}.champ-row{display:flex;align-items:center;flex-wrap:wrap;gap:5px;padding:4px 7px;border-radius:5px;background:var(--surface2);font-size:.82rem}.carry-row{border-left:2px solid var(--accent)}.champ-cost-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}.cost-1{background:var(--cost1)}.cost-2{background:var(--cost2)}.cost-3{background:var(--cost3)}.cost-4{background:var(--cost4)}.cost-5{background:var(--cost5)}.champ-name{font-weight:600;flex:1;min-width:50px}.champ-cost-label{font-size:.7rem;color:var(--text-muted)}.item-row{display:flex;flex-wrap:wrap;gap:3px;width:100%}.item-badge{background:#1e2535;border:1px solid var(--border);border-radius:3px;padding:1px 5px;font-size:.68rem;color:#afc6ff}.trait-list{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}.trait-badge{border-radius:4px;padding:2px 7px;font-size:.74rem;font-weight:600}.style-1{background:#2b1e0e;color:var(--trait1);border:1px solid #5a3a1a}.style-2{background:#1e2025;color:var(--trait2);border:1px solid #4a4a55}.style-3{background:#2b2500;color:var(--trait3);border:1px solid #6a5e00}.style-4{background:#0e2530;color:var(--trait4);border:1px solid #1a6a80}.reroll-guide{background:var(--surface2);border-radius:5px;padding:7px 9px;font-size:.8rem;margin-top:6px}.top5-list{display:flex;flex-direction:column;gap:8px}.top5-row{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px}.top5-medal{font-size:1.3rem;flex-shrink:0;width:28px;text-align:center}.top5-info{flex:1;min-width:0}.top5-name{display:block;font-weight:700;font-size:.88rem;margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.top5-meta{display:flex;flex-direction:column;align-items:flex-end;gap:1px;font-size:.76rem;color:var(--text-muted)}.reroll-table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:.82rem}th{background:var(--surface2);color:var(--text-muted);font-weight:600;padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}td{padding:7px 10px;border-bottom:1px solid var(--border)}tr:last-child td{border-bottom:none}.site-footer{text-align:center;padding:16px;font-size:.78rem;color:var(--text-muted);border-top:1px solid var(--border)}.no-data{color:var(--text-muted);font-size:.85rem;padding:10px 0}"""
+    css = """*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}:root{--bg:#0e1117;--surface:#1a1f2e;--surface2:#242a3a;--border:#2e3650;--text:#e8eaf0;--text-muted:#8892aa;--accent:#4f7fff;--cost1:#9e9e9e;--cost2:#4caf50;--cost3:#2196f3;--cost4:#9c27b0;--cost5:#ffc107;--strong:#00c853;--good:#69f0ae;--normal:#ffeb3b;--caution:#ff9800;--weak:#ff5722;--replace:#f44336;--trait1:#cd7f32;--trait2:#c0c0c0;--trait3:#ffd700;--trait4:#b9f2ff;--radius:10px;--shadow:0 2px 12px rgba(0,0,0,.45)}body{background:var(--bg);color:var(--text);font-family:'Segoe UI','Noto Sans KR',Arial,sans-serif;font-size:15px;line-height:1.6;-webkit-text-size-adjust:100%}a{color:var(--accent);text-decoration:none}.site-header{background:linear-gradient(135deg,#1a1f2e,#0e1117);border-bottom:1px solid var(--border);padding:24px 16px 20px;text-align:center}.site-header h1{font-size:clamp(1.3rem,4vw,2rem);font-weight:800}.header-meta{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:10px}.header-chip{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:.78rem;color:var(--text-muted)}.header-chip strong{color:var(--text)}.container{max-width:960px;margin:0 auto;padding:16px 12px 40px}.section{margin-bottom:32px}.section-title{font-size:1rem;font-weight:700;border-left:3px solid var(--accent);padding-left:10px;margin-bottom:14px}.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}.deck-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow)}.deck-card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}.deck-name{font-weight:700;font-size:.93rem}.cat-badge{border-radius:4px;padding:2px 7px;font-size:.7rem;font-weight:700}.badge-main{background:#1a3a6b;color:#90caf9}.badge-ad{background:#3a1a1a;color:#ef9a9a}.badge-special{background:#2a1a3a;color:#ce93d8}.gauge-wrap{display:flex;align-items:center;gap:8px;margin-bottom:8px}.gauge-bar{flex:1;background:var(--surface2);border-radius:4px;height:8px;overflow:hidden}.gauge-fill{height:100%;border-radius:4px}.gauge-label{font-size:.8rem;font-weight:700;min-width:40px;text-align:right}.verdict-strong-fill{background:var(--strong)}.verdict-good-fill{background:var(--good)}.verdict-normal-fill{background:var(--normal)}.verdict-caution-fill{background:var(--caution)}.verdict-weak-fill{background:var(--weak)}.verdict-replace-fill{background:var(--replace)}.deck-stats{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:10px}.stat-item{display:flex;justify-content:space-between;background:var(--surface2);border-radius:6px;padding:4px 8px;font-size:.78rem}.stat-label{color:var(--text-muted)}.stat-val{font-weight:700}.verdict-row{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:5px}.verdict-badge{font-size:.76rem;font-weight:700;padding:2px 8px;border-radius:4px}.verdict-strong{background:#003322;color:var(--strong)}.verdict-good{background:#002211;color:var(--good)}.verdict-normal{background:#332e00;color:var(--normal)}.verdict-caution{background:#332200;color:var(--caution)}.verdict-weak{background:#331100;color:var(--weak)}.verdict-replace{background:#330000;color:var(--replace)}.deck-link{font-size:.76rem;color:var(--accent)}.guide-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:14px;overflow:hidden;box-shadow:var(--shadow)}.guide-header{display:flex;justify-content:space-between;align-items:center;background:var(--surface2);padding:10px 14px;border-bottom:1px solid var(--border)}.guide-title{font-weight:700;font-size:.93rem}.guide-body{display:grid;grid-template-columns:1fr 1fr}@media(max-width:640px){.guide-body{grid-template-columns:1fr}.guide-col+.guide-col{border-left:none!important;border-top:1px solid var(--border)}}.guide-col{padding:12px 14px}.guide-col+.guide-col{border-left:1px solid var(--border)}.col-title{font-size:.76rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);letter-spacing:.5px;margin-bottom:8px}.champ-list{display:flex;flex-direction:column;gap:4px}.champ-row{display:flex;align-items:center;flex-wrap:wrap;gap:5px;padding:4px 7px;border-radius:5px;background:var(--surface2);font-size:.82rem}.carry-row{border-left:2px solid var(--accent)}.champ-cost-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}.cost-1{background:var(--cost1)}.cost-2{background:var(--cost2)}.cost-3{background:var(--cost3)}.cost-4{background:var(--cost4)}.cost-5{background:var(--cost5)}.champ-name{font-weight:600;flex:1;min-width:50px}.champ-cost-label{font-size:.7rem;color:var(--text-muted)}.item-row{display:flex;flex-wrap:wrap;gap:3px;width:100%}.item-badge{background:#1e2535;border:1px solid var(--border);border-radius:3px;padding:1px 5px;font-size:.68rem;color:#afc6ff}.trait-list{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}.trait-badge{border-radius:4px;padding:2px 7px;font-size:.74rem;font-weight:600}.style-1{background:#2b1e0e;color:var(--trait1);border:1px solid #5a3a1a}.style-2{background:#1e2025;color:var(--trait2);border:1px solid #4a4a55}.style-3{background:#2b2500;color:var(--trait3);border:1px solid #6a5e00}.style-4{background:#0e2530;color:var(--trait4);border:1px solid #1a6a80}.reroll-guide{background:var(--surface2);border-radius:5px;padding:7px 9px;font-size:.8rem;margin-top:6px}.op-guide{padding:14px 16px;border-top:1px solid var(--border)}.op-phase{margin-bottom:10px}.phase-badge{display:inline-block;font-size:.72rem;font-weight:700;padding:2px 8px;border-radius:4px;margin-bottom:4px}.phase-early{background:#1a3a2a;color:#69f0ae}.phase-mid{background:#2a2a1a;color:#ffeb3b}.phase-late{background:#3a1a1a;color:#ff8a80}.phase-text{font-size:.8rem;line-height:1.6;color:var(--text-muted);padding-left:4px}.top5-list{display:flex;flex-direction:column;gap:8px}.top5-row{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px}.top5-medal{font-size:1.3rem;flex-shrink:0;width:28px;text-align:center}.top5-info{flex:1;min-width:0}.top5-name{display:block;font-weight:700;font-size:.88rem;margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.top5-meta{display:flex;flex-direction:column;align-items:flex-end;gap:1px;font-size:.76rem;color:var(--text-muted)}.reroll-table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:.82rem}th{background:var(--surface2);color:var(--text-muted);font-weight:600;padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}td{padding:7px 10px;border-bottom:1px solid var(--border)}tr:last-child td{border-bottom:none}.site-footer{text-align:center;padding:16px;font-size:.78rem;color:var(--text-muted);border-top:1px solid var(--border)}.no-data{color:var(--text-muted);font-size:.85rem;padding:10px 0}"""
 
     return f"""<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>TFT 메타 대시보드</title><style>{css}</style></head><body>
 <header class="site-header"><h1>🎮 TFT 메타 대시보드</h1><div class="header-meta"><span class="header-chip">패치 <strong>{patch}</strong></span><span class="header-chip">업데이트 <strong>{updated_at}</strong></span><span class="header-chip">분석 덱 <strong>{total_decks}개</strong></span></div></header>
