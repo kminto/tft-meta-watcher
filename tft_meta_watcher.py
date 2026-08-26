@@ -1027,52 +1027,70 @@ def generate_html_report(meta_info, all_stats, watched_stats, decks_raw):
                 if vc2:
                     mc = max(set(vc2),key=vc2.count); o=get_optimal_reroll_level(mc); lv=o["optimal_level"]; inf=o["all_levels"].get(lv,{})
                     rr = f'<div class="reroll-guide">🎰 <strong>리롤:</strong> Lv.{lv}에서 {mc}코 캐리 — 상점 {inf.get("shop_chance_pct",0):.1f}% | 50%: {inf.get("rolls_for_50pct","?")}롤({inf.get("gold_for_50pct","?")}G)</div>'
-                # 운영 가이드 자동 생성 (캐리 코스트 기반)
+                # 운영 가이드 자동 생성 (캐리/탱커를 코스트별로 분류)
                 op_guide = ""
                 if vc2:
                     mc = max(set(vc2), key=vc2.count)
-                    carry_names = []
-                    tank_names = []
+                    # 코스트별 챔프 분류
+                    carries_high = []  # 4~5코 캐리 (후반에 넣는 챔프)
+                    carries_low = []   # 1~3코 캐리 (초반부터 모을 수 있는 챔프)
+                    tanks_high = []    # 4~5코 탱커
+                    tanks_low = []     # 1~3코 탱커
+                    early_units = []   # 1~2코 유닛 (초반 쓸 수 있는 유닛)
+
                     for c in champs:
                         cr = c.get("coreRank", 99)
-                        nm = _champ_name(c.get("key",""))
-                        if cr <= 2: carry_names.append(nm)
-                        elif cr <= 4 and c.get("items"): tank_names.append(nm)
+                        k = c.get("key", "")
+                        nm = _champ_name(k)
+                        co = _champ_cost(k)
+                        has_items = bool(c.get("items"))
 
-                    carry_str = ", ".join(carry_names) if carry_names else "메인 캐리"
-                    tank_str = ", ".join(tank_names) if tank_names else "탱커"
+                        if cr <= 2:  # 메인 캐리
+                            if co >= 4: carries_high.append(f"{nm}({co}코)")
+                            else: carries_low.append(f"{nm}({co}코)")
+                        elif cr <= 4 and has_items:  # 서브 캐리/탱커
+                            if co >= 4: tanks_high.append(f"{nm}({co}코)")
+                            else: tanks_low.append(f"{nm}({co}코)")
+
+                        if co <= 2:
+                            early_units.append(nm)
+
+                    carry_all = ", ".join(carries_low + carries_high) if (carries_low or carries_high) else "메인 캐리"
+                    early_str = ", ".join(early_units[:4]) if early_units else "1~2코 유닛"
 
                     if mc <= 2:  # 1~2코 리롤덱
+                        carry_str = ", ".join(carries_low) if carries_low else carry_all
+                        tank_str = ", ".join(tanks_low) if tanks_low else "저코 탱커"
                         op_guide = f'''
             <div class="op-guide">
               <h4 class="col-title">운영 가이드</h4>
               <div class="op-phase">
                 <div class="phase-badge phase-early">초반 (1~3스테이지)</div>
                 <div class="phase-text">
-                  <strong>{carry_str}</strong> 일단 1장이라도 잡으면서 연패/연승 세팅<br>
-                  아이템 조합재료 우선 수급 (회전판에서 캐리 아이템 재료 먼저)<br>
-                  이자 골드 10골 이상 유지하면서 레벨 올리지 말고 돈 모으기
+                  <strong>{carry_str}</strong> 뜨면 무조건 잡아두기 (벤치에 모아놓기)<br>
+                  아이템 재료 수급 — 캐리 아이템 재료 우선<br>
+                  레벨 올리지 말고 돈 모으기, 이자 10골 이상 유지
                 </div>
               </div>
               <div class="op-phase">
                 <div class="phase-badge phase-mid">중반 (3-2 ~ 4-1)</div>
                 <div class="phase-text">
                   <strong>레벨 {max(5, mc+3)}</strong>에서 멈추고 올인 리롤<br>
-                  <strong>{carry_str}</strong> 3성 만드는 게 최우선<br>
-                  {tank_str} 2성도 같이 챙기기<br>
+                  <strong>{carry_str}</strong> 3성이 최우선 목표<br>
                   50골 이상이면 리롤 시작, 30골 밑으로 떨어지면 멈추기
                 </div>
               </div>
               <div class="op-phase">
                 <div class="phase-badge phase-late">후반 (5스테이지~)</div>
                 <div class="phase-text">
-                  캐리 3성 완성됐으면 레벨 올려서 5코 유닛 추가<br>
-                  못 만들었으면 남은 골드로 한번 더 리롤 후 레벨업<br>
-                  포지셔닝: 캐리를 상대 어쌔신 반대편에 배치
+                  캐리 3성 완성 → 레벨 올려서 고코 유닛 추가<br>
+                  못 만들었으면 남은 골드로 리롤 한번 더 → 레벨업<br>
+                  포지셔닝: 캐리를 어쌔신 반대편에 배치
                 </div>
               </div>
             </div>'''
-                    elif mc == 3:  # 3코 리롤덱
+                    elif mc == 3:  # 3코 슬로우롤
+                        carry_str = ", ".join(carries_low) if carries_low else carry_all
                         opt = get_optimal_reroll_level(3)
                         rlvl = opt["optimal_level"]
                         op_guide = f'''
@@ -1081,56 +1099,57 @@ def generate_html_report(meta_info, all_stats, watched_stats, decks_raw):
               <div class="op-phase">
                 <div class="phase-badge phase-early">초반 (1~3스테이지)</div>
                 <div class="phase-text">
-                  <strong>{carry_str}</strong> 뜨면 잡아두고, 안 뜨면 강한 보드로 연승 추구<br>
-                  아이템 재료 수급 우선 (캐리 아이템 → 탱커 아이템 순서)<br>
-                  이자 관리하면서 자연 레벨업, 경험치 사지 않기
+                  <strong>{early_str}</strong> 등 저코 유닛으로 보드 채우기<br>
+                  <strong>{carry_str}</strong> 뜨면 벤치에 모아두기<br>
+                  아이템 재료 수급 (캐리 아이템 → 탱커 아이템 순서)
                 </div>
               </div>
               <div class="op-phase">
                 <div class="phase-badge phase-mid">중반 (3-2 ~ 4-5)</div>
                 <div class="phase-text">
-                  <strong>레벨 {rlvl}</strong>에서 리롤 시작 (3코 확률 최고 구간)<br>
+                  <strong>레벨 {rlvl}</strong>에서 리롤 (3코 확률 최고 구간)<br>
                   <strong>{carry_str}</strong> 2성 필수, 여유되면 3성 도전<br>
-                  {tank_str} 2성 + 아이템 장착<br>
-                  체력 50 이하면 즉시 리롤, 여유 있으면 이자 태우면서 천천히
+                  체력 50 이하면 바로 리롤, 여유 있으면 이자 태우면서 슬로우롤
                 </div>
               </div>
               <div class="op-phase">
                 <div class="phase-badge phase-late">후반 (5스테이지~)</div>
                 <div class="phase-text">
-                  캐리 2성 + 탱커 2성 완성 후 레벨 8~9로 올려서 5코 추가<br>
-                  상대 조합 보고 포지셔닝 조정 (어쌔신 있으면 캐리 뒤로)<br>
-                  남은 골드로 업그레이드 or 5코 2성 노리기
+                  캐리 2성 완성 후 레벨 8~9로 올려서 고코 유닛 추가<br>
+                  {", ".join(carries_high + tanks_high) if (carries_high or tanks_high) else "4~5코 유닛"} 넣어서 보드 완성<br>
+                  상대 조합 보고 포지셔닝 조정
                 </div>
               </div>
             </div>'''
                     else:  # 4~5코 레벨덱 (패스트 8)
+                        carry_str = ", ".join(carries_high) if carries_high else carry_all
+                        tank_str = ", ".join(tanks_high + tanks_low) if (tanks_high or tanks_low) else "탱커"
                         op_guide = f'''
             <div class="op-guide">
               <h4 class="col-title">운영 가이드</h4>
               <div class="op-phase">
                 <div class="phase-badge phase-early">초반 (1~3스테이지)</div>
                 <div class="phase-text">
-                  강한 2코 유닛으로 연승 세팅 (체력 아끼기)<br>
-                  아이템 재료 수급 — <strong>{carry_str}</strong> 아이템 우선<br>
-                  2성 조합으로 보드 강하게 유지, 경험치는 아직 안 삼
+                  <strong>{early_str}</strong> 등 저코 유닛 2성으로 연승 노리기<br>
+                  <strong>{carry_str}</strong>은 아직 안 나옴 → 아이템 재료만 모으기<br>
+                  캐리 아이템은 임시로 저코 유닛한테 들려서 연승 유지
                 </div>
               </div>
               <div class="op-phase">
                 <div class="phase-badge phase-mid">중반 (3-2 ~ 4-5)</div>
                 <div class="phase-text">
-                  <strong>패스트 레벨 8</strong>이 목표 — 4-2까지 레벨 8 도달<br>
-                  이자 깨지 않는 선에서 경험치 구매 (매 라운드 4골 씩)<br>
-                  중간에 뜨는 <strong>{carry_str}</strong> 잡아두기<br>
-                  {tank_str} 넣어서 시너지 맞추면서 버티기
+                  <strong>패스트 레벨 8</strong> 목표 (4-2까지 레벨 8 도달)<br>
+                  매 라운드 경험치 구매, 이자는 최대한 유지<br>
+                  중간에 <strong>{carry_str}</strong> 뜨면 벤치에 잡아두기<br>
+                  레벨 7에서 {tank_str} 넣어서 버티기
                 </div>
               </div>
               <div class="op-phase">
-                <div class="phase-badge phase-late">후반 (5스테이지~)</div>
+                <div class="phase-badge phase-late">후반 (레벨 8~)</div>
                 <div class="phase-text">
-                  레벨 8에서 <strong>{carry_str}</strong> 2성 + 핵심 시너지 완성 리롤<br>
-                  완성되면 레벨 9 올려서 5코 추가 유닛 넣기<br>
-                  체력 여유 있으면 레벨 9 먼저, 없으면 레벨 8에서 올인
+                  레벨 8 찍자마자 리롤 → <strong>{carry_str}</strong> 2성 만들기<br>
+                  임시 유닛 빼고 아이템 캐리한테 옮기기<br>
+                  완성되면 레벨 9 → 5코 추가 유닛으로 보드 업그레이드
                 </div>
               </div>
             </div>'''
