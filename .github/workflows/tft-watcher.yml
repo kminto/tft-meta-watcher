@@ -1,4 +1,4 @@
-name: TFT 메타 감시
+name: TFT Meta Watcher
 
 on:
   schedule:
