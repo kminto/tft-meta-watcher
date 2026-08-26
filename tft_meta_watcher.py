@@ -681,22 +681,34 @@ def analyze_changes(current_data: dict, prev_state: dict) -> list[dict]:
     by_avg = sorted([s for s in all_stats if s["avg_placement"] > 0],
                     key=lambda x: x["avg_placement"])
 
-    # 3. 별돌보미 룰루 체크
-    lulu_stats = watched_stats["main"].get("별돌보미 룰루")
-    if lulu_stats:
-        prev_lulu = prev_decks_stats.get("별돌보미 룰루", {})
-        if prev_lulu:
-            top4_diff = lulu_stats["top4_rate"] - prev_lulu.get("top4_rate", 0)
-            avg_diff = lulu_stats["avg_placement"] - prev_lulu.get("avg_placement", 0)
+    # 3. 감시 덱 전체 하락 체크 + 1위 덱 추천
+    top1 = by_top4[0] if by_top4 else None
+    top1_recommend = ""
+    if top1:
+        top1_recommend = (
+            f"\n\n🏆 **현재 1위 덱: {top1['name']}**\n"
+            f"순방률 {top1['top4_rate']:.1f}% | 평균등수 {top1['avg_placement']:.2f}등 | {top1['play_count']:,}판"
+        )
+
+    for category in ["main", "ad_alt", "special"]:
+        for label, stats in watched_stats.get(category, {}).items():
+            prev = prev_decks_stats.get(label, {})
+            if not prev:
+                continue
+
+            top4_diff = stats["top4_rate"] - prev.get("top4_rate", 0)
+            avg_diff = stats["avg_placement"] - prev.get("avg_placement", 0)
+            cat_name = {"main": "메인덱", "ad_alt": "AD덱", "special": "특수덱"}.get(category, "")
 
             if top4_diff <= -2.0:
                 alerts.append({
                     "type": "main_deck_warning",
-                    "title": "⚠️ 메인덱 순방률 떨어짐",
+                    "title": f"⚠️ {cat_name} 순방률 떨어짐",
                     "message": (
-                        f"**별돌보미 룰루** 순방률이 {abs(top4_diff):.2f}%p 빠졌어요\n"
-                        f"{prev_lulu.get('top4_rate', 0):.2f}% → **{lulu_stats['top4_rate']:.2f}%**\n"
-                        f"평균등수: {lulu_stats['avg_placement']:.2f}"
+                        f"**{label}** 순방률이 {abs(top4_diff):.2f}%p 빠졌어요\n"
+                        f"{prev.get('top4_rate', 0):.2f}% → **{stats['top4_rate']:.2f}%**\n"
+                        f"평균등수: {stats['avg_placement']:.2f}"
+                        + top1_recommend
                     ),
                     "priority": "high",
                 })
@@ -704,17 +716,51 @@ def analyze_changes(current_data: dict, prev_state: dict) -> list[dict]:
             if avg_diff >= 0.15:
                 alerts.append({
                     "type": "main_deck_warning",
-                    "title": "⚠️ 메인덱 등수 밀림",
+                    "title": f"⚠️ {cat_name} 등수 밀림",
                     "message": (
-                        f"**별돌보미 룰루** 평균등수가 {avg_diff:.2f} 밀렸어요\n"
-                        f"{prev_lulu.get('avg_placement', 0):.2f}등 → **{lulu_stats['avg_placement']:.2f}등**\n"
-                        f"순방률: {lulu_stats['top4_rate']:.2f}%"
+                        f"**{label}** 평균등수가 {avg_diff:.2f} 밀렸어요\n"
+                        f"{prev.get('avg_placement', 0):.2f}등 → **{stats['avg_placement']:.2f}등**\n"
+                        f"순방률: {stats['top4_rate']:.2f}%"
+                        + top1_recommend
                     ),
                     "priority": "high",
                 })
 
-    # 4~8: 나머지 덱 변동은 요약 리포트에서 확인 가능하므로 별도 알림 안 함
-    # (TOP 3 진입, 신규 강력덱, AD덱 후보, 이즈리얼 컨디션 등)
+    # 4. 내 메인덱보다 강한 덱 나오면 알림
+    main_stats_list = list(watched_stats.get("main", {}).values())
+    if main_stats_list:
+        best_main_top4 = max(s["top4_rate"] for s in main_stats_list)
+        best_main_avg = min(s["avg_placement"] for s in main_stats_list if s["avg_placement"] > 0) if any(s["avg_placement"] > 0 for s in main_stats_list) else 99
+
+        # 이전에 알림 보낸 덱은 제외
+        prev_notified = set(prev_state.get("notified_better_decks", []))
+
+        for s in all_stats:
+            # 내 감시 덱이면 스킵
+            is_watched = False
+            for cat_stats in watched_stats.values():
+                if s["name"] in cat_stats:
+                    is_watched = True
+                    break
+            if is_watched:
+                continue
+
+            # 순방률과 평균등수 모두 내 메인덱보다 좋고, 표본 충분한 경우
+            if (s["top4_rate"] > best_main_top4 + 1.0
+                    and 0 < s["avg_placement"] < best_main_avg
+                    and s["play_count"] >= 3000
+                    and s["name"] not in prev_notified):
+                alerts.append({
+                    "type": "better_deck_found",
+                    "title": "🔥 내 메인덱보다 좋은 덱 나옴",
+                    "message": (
+                        f"**{s['name']}** — 내 메인덱보다 성적이 좋아요\n"
+                        f"순방률 **{s['top4_rate']:.1f}%** (내 메인: {best_main_top4:.1f}%)\n"
+                        f"평균등수 **{s['avg_placement']:.2f}등** (내 메인: {best_main_avg:.2f}등)\n"
+                        f"판수: {s['play_count']:,}판"
+                    ),
+                    "priority": "medium",
+                })
 
     # 9. 감시 대상 덱 목록에서 사라진 경우
     watched_labels = set()
@@ -1329,6 +1375,7 @@ def build_alert_embed(alert: dict) -> dict:
         "new_strong_deck": "→ 표본도 많고 성적도 좋아요. 배워둘 가치 있음.",
         "new_reroll_deck": "→ 지금 쓰는 덱보다 좋아요. 갈아탈지 고민해보세요.",
         "low_avg_deck": "→ 평균등수가 좋은 덱이에요. 체크해보세요.",
+        "better_deck_found": "→ 이 덱 가이드 확인해보세요. 갈아탈지 고민해볼 타이밍!",
     }
 
     # 덱 관련 알림이면 롤체지지 링크 추가
@@ -1541,6 +1588,17 @@ def main():
             notified_dates.append(sched["date"])
     notified_dates = list(set(notified_dates))[-20:]  # 최근 20개만 유지
 
+    # 알림 보낸 "내 덱보다 좋은 덱" 기록
+    notified_better = list(prev_state.get("notified_better_decks", []))
+    for a in alerts:
+        if a["type"] == "better_deck_found":
+            match = re.search(r'\*\*(.+?)\*\*', a.get("message", ""))
+            if match:
+                notified_better.append(match.group(1))
+    # 패치 바뀌면 리셋 (새 패치에서는 다시 알림)
+    if prev_meta.get("patch") and meta_info["patch"] != prev_meta.get("patch"):
+        notified_better = []
+
     new_state = {
         "meta_info": meta_info,
         "decks_stats": decks_stats_map,
@@ -1549,6 +1607,7 @@ def main():
         "patch_note_urls": [n["url"] for n in patch_notes],
         "patch_detected_at": patch_detected_at,
         "notified_patch_dates": notified_dates,
+        "notified_better_decks": notified_better,
         "patch_schedules": patch_schedules,
         "is_post_patch": is_post_patch,
         "last_run": datetime.now().isoformat(),
