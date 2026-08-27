@@ -30,6 +30,9 @@ RIOT_PATCH_SCHEDULE_URL = "https://support-leagueoflegends.riotgames.com/hc/ko/a
 # 패치 직후 집중 감시 시간 (초) - 패치 감지 후 6시간 동안 집중 모드
 POST_PATCH_WATCH_DURATION = 6 * 60 * 60
 
+# 알림 시간 설정 (KST 기준, 24시간제)
+ALERT_HOUR_KST = 18  # 매일 오후 6시에 알림
+
 # 감시 대상 덱 (config.json에서 로드, 디스코드 봇으로 변경 가능)
 CONFIG_FILE = SCRIPT_DIR / "config.json"
 
@@ -1697,31 +1700,60 @@ def main():
     }
     save_state(new_state)
 
-    # 알림 전송
+    # 알림 전송 시간 체크 (KST 기준)
+    import zoneinfo
+    try:
+        kst_now = datetime.now(zoneinfo.ZoneInfo("Asia/Seoul"))
+    except Exception:
+        kst_now = datetime.now()  # 폴백
+    current_hour = kst_now.hour
+    today_str = kst_now.strftime("%Y-%m-%d")
+    last_alert_date = prev_state.get("last_alert_date", "")
+
+    # 긴급 알림 (패치 변경, 핫픽스) → 시간 무관 즉시 전송
+    urgent_types = {"patch_change", "hotfix_detected", "patch_today"}
+    urgent_alerts = [a for a in alerts if a.get("type") in urgent_types]
+
+    # 일반 알림 → 매일 18시(KST)에 한 번만
+    is_alert_time = (current_hour == ALERT_HOUR_KST and today_str != last_alert_date)
+
     embeds = []
 
-    if alerts:
-        for alert in alerts:
-            # 덱 관련 알림이면 덱 URL 자동 추가
+    # 긴급 알림은 항상 전송
+    if urgent_alerts:
+        for alert in urgent_alerts:
             if "deck_url" not in alert and decks:
                 match = re.search(r'\*\*(.+?)\*\*', alert.get("message", ""))
                 if match:
                     alert["deck_url"] = _find_deck_url(match.group(1), decks)
             embeds.append(build_alert_embed(alert))
 
-    # 첫 실행, force-alert, 패치 직후, 중요 알림 있을 때만 요약 전송
-    if not prev_state or args.force_alert or is_post_patch or alerts:
+    # 일반 알림 + 요약 → 18시 또는 force-alert일 때만
+    if is_alert_time or args.force_alert or (not prev_state):
+        normal_alerts = [a for a in alerts if a.get("type") not in urgent_types]
+        for alert in normal_alerts:
+            if "deck_url" not in alert and decks:
+                match = re.search(r'\*\*(.+?)\*\*', alert.get("message", ""))
+                if match:
+                    alert["deck_url"] = _find_deck_url(match.group(1), decks)
+            embeds.append(build_alert_embed(alert))
+
         summary_embeds = build_summary_embeds(meta_info, all_stats, watched_stats, decks)
         if is_post_patch and summary_embeds:
             summary_embeds[0]["title"] = "📋 TFT 메타 리포트 [🔥 패치 직후 집중 감시]"
             summary_embeds[0]["color"] = 0xFF6600
         embeds.extend(summary_embeds)
 
+        # 오늘 알림 보냈다고 기록
+        new_state["last_alert_date"] = today_str
+        save_state(new_state)
+        logger.info(f"18시 정기 알림 전송")
+
     if embeds:
         send_discord(embeds, dry_run=args.dry_run)
         logger.info(f"총 {len(embeds)}개 임베드 {'출력' if args.dry_run else '전송'} 완료")
     else:
-        logger.info("변경 사항 없음. 알림을 보내지 않습니다.")
+        logger.info("알림 시간 아님 또는 변경 없음. 데이터만 저장.")
 
     # HTML 대시보드 생성 (GitHub Pages용)
     try:
