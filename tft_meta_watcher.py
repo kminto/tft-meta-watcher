@@ -802,6 +802,95 @@ def analyze_changes(current_data: dict, prev_state: dict) -> list[dict]:
     return alerts
 
 
+# ── 추천 덱 알고리즘 ──────────────────────────────────────────────────────────
+
+def find_strongest_deck(decks_raw: list[dict]) -> dict | None:
+    """현재 가장 강한 덱을 찾는다.
+    점수 = (순방률 × 0.4) + ((10 - 평균등수) × 10 × 0.3) + (표본 점수 × 0.3)
+    표본이 충분하고 순방률/등수 모두 좋은 덱이 1위.
+    """
+    if not decks_raw:
+        return None
+
+    best = None
+    best_score = -1
+
+    for d in decks_raw:
+        stats = get_deck_stats(d)
+        top4 = stats["top4_rate"]
+        avg = stats["avg_placement"]
+        plays = stats["play_count"]
+
+        if plays < 1000 or avg <= 0:
+            continue
+
+        # 표본 점수 (10000판 이상이면 만점, 로그 스케일)
+        import math
+        sample_score = min(100, math.log10(max(1, plays)) * 25)
+
+        score = (top4 * 0.4) + ((10 - avg) * 10 * 0.3) + (sample_score * 0.3)
+
+        if score > best_score:
+            best_score = score
+            best = d
+
+    return best
+
+
+def find_hidden_op_deck(decks_raw: list[dict]) -> dict | None:
+    """픽률 낮지만 성적 좋은 숨겨진 OP 덱을 찾는다.
+    조건: 픽률 1% 이하, 순방률 58%+, 표본 2000+, 평균등수 4.0 이하
+    점수 = 순방률 × (1 - 픽률/5) — 픽률 낮을수록 보너스
+    """
+    if not decks_raw:
+        return None
+
+    candidates = []
+
+    for d in decks_raw:
+        stats = get_deck_stats(d)
+        top4 = stats["top4_rate"]
+        avg = stats["avg_placement"]
+        plays = stats["play_count"]
+        pick = d.get("pickRate", 0)
+
+        if plays < 2000 or avg > 4.0 or avg <= 0:
+            continue
+        if top4 < 58:
+            continue
+        if pick > 1.0:
+            continue
+
+        # 픽률 낮을수록 보너스
+        score = top4 * (1 - pick / 5)
+        candidates.append((score, d))
+
+    if not candidates:
+        # 조건 완화: 순방률 55%+, 픽률 2% 이하
+        for d in decks_raw:
+            stats = get_deck_stats(d)
+            top4 = stats["top4_rate"]
+            avg = stats["avg_placement"]
+            plays = stats["play_count"]
+            pick = d.get("pickRate", 0)
+
+            if plays < 1500 or avg > 4.1 or avg <= 0:
+                continue
+            if top4 < 55:
+                continue
+            if pick > 2.0:
+                continue
+
+            score = top4 * (1 - pick / 5)
+            candidates.append((score, d))
+
+    if not candidates:
+        return None
+
+    candidates.sort(key=lambda x: x[0], reverse=True)
+    return candidates[0][1]
+
+
 # ── 덱 상세 임베드 ───────────────────────────────────────────────────────────
 
 # 챔프 영문 → 한글 폴백 매핑 (커뮤니티 드래곤에 없는 챔프용)
@@ -1068,67 +1157,57 @@ def generate_html_report(meta_info, all_stats, watched_stats, decks_raw):
                 cards.append(f'''<div class="deck-card"><div class="deck-card-header"><span class="deck-name">{esc(label)}</span><span class="cat-badge {cat_cls.get(cat,"")}">{cat_label.get(cat,"")}</span></div><div class="gauge-wrap"><div class="gauge-bar"><div class="gauge-fill {vc(t4)}-fill" style="width:{min(100,t4):.0f}%"></div></div><span class="gauge-label">{t4:.1f}%</span></div><div class="deck-stats"><div class="stat-item"><span class="stat-label">순방률</span><span class="stat-val">{t4:.1f}%</span></div><div class="stat-item"><span class="stat-label">평균등수</span><span class="stat-val">{avg:.2f}</span></div><div class="stat-item"><span class="stat-label">승률</span><span class="stat-val">{stats["win_rate"]:.1f}%</span></div><div class="stat-item"><span class="stat-label">판수</span><span class="stat-val">{stats["play_count"]:,}</span></div></div><div class="verdict-row"><span class="verdict-badge {vc(t4)}">{esc(_verdict_label(t4))}</span><a class="deck-link" href="{esc(url)}" target="_blank">롤체지지 보기 →</a></div></div>''')
         return "\n".join(cards) if cards else '<p class="no-data">감시 덱 없음</p>'
 
-    def guide_html():
-        secs = []
-        for cat in WATCHED_DECKS:
-            for label, stats in watched_stats.get(cat, {}).items():
-                raw = None
-                for entry in WATCHED_DECKS.get(cat, []):
-                    if entry["label"] == label:
-                        for d in decks_raw:
-                            if deck_matches(d, entry): raw = d; break
-                        break
-                if not raw: continue
-                champs = sorted(raw.get("deck",{}).get("champions",[]), key=lambda c:(c.get("coreRank",99),-_champ_cost(c.get("key",""))))
-                traits = sorted(raw.get("deck",{}).get("traits",[]), key=lambda t:-t.get("style",0))
-                ch_rows = []; carry_costs = []
-                for c in champs:
-                    k=c.get("key",""); nm=_champ_name(k); co=_champ_cost(k); cc=cost_class.get(co,"cost-1"); cr=c.get("coreRank",99); items=c.get("items",[])
-                    if cr<=4: carry_costs.append(co)
-                    star = "⭐ " if cr<=2 else ""
-                    itm = "".join(f'<span class="item-badge">{esc(_item_name(i))}</span>' for i in items) if items else ""
-                    ch_rows.append(f'<div class="champ-row{"  carry-row" if cr<=4 else ""}"><span class="champ-cost-dot {cc}"></span><span class="champ-name">{star}{esc(nm)}</span><span class="champ-cost-label">{co}코</span>{f"<div class=item-row>{itm}</div>" if itm else ""}</div>')
-                tr_rows = [f'<span class="trait-badge style-{t.get("style",1)}">{trait_style_label.get(t.get("style",1),"")} {esc(_trait_name(t.get("key","")))} {t.get("numUnits",0)}</span>' for t in traits]
-                rr = ""
-                vc2 = [c for c in carry_costs if 1<=c<=5]
-                if vc2:
-                    mc = max(set(vc2),key=vc2.count); o=get_optimal_reroll_level(mc); lv=o["optimal_level"]; inf=o["all_levels"].get(lv,{})
-                    rr = f'<div class="reroll-guide">🎰 <strong>리롤:</strong> Lv.{lv}에서 {mc}코 캐리 — 상점 {inf.get("shop_chance_pct",0):.1f}% | 50%: {inf.get("rolls_for_50pct","?")}롤({inf.get("gold_for_50pct","?")}G)</div>'
-                # 운영 가이드 자동 생성 (캐리/탱커를 코스트별로 분류)
-                op_guide = ""
-                if vc2:
-                    mc = max(set(vc2), key=vc2.count)
-                    # 코스트별 챔프 분류
-                    carries_high = []  # 4~5코 캐리 (후반에 넣는 챔프)
-                    carries_low = []   # 1~3코 캐리 (초반부터 모을 수 있는 챔프)
-                    tanks_high = []    # 4~5코 탱커
-                    tanks_low = []     # 1~3코 탱커
-                    early_units = []   # 1~2코 유닛 (초반 쓸 수 있는 유닛)
+    def deck_detail_card(raw_deck, label):
+        """덱 상세 카드 HTML을 생성한다 (챔피언 구성, 아이템, 시너지, 리롤/운영 가이드)."""
+        champs = sorted(raw_deck.get("deck", {}).get("champions", []), key=lambda c: (c.get("coreRank", 99), -_champ_cost(c.get("key", ""))))
+        traits = sorted(raw_deck.get("deck", {}).get("traits", []), key=lambda t: -t.get("style", 0))
+        ch_rows = []; carry_costs = []
+        for c in champs:
+            k = c.get("key", ""); nm = _champ_name(k); co = _champ_cost(k); cc = cost_class.get(co, "cost-1"); cr = c.get("coreRank", 99); items = c.get("items", [])
+            if cr <= 4: carry_costs.append(co)
+            star = "⭐ " if cr <= 2 else ""
+            itm = "".join(f'<span class="item-badge">{esc(_item_name(i))}</span>' for i in items) if items else ""
+            ch_rows.append(f'<div class="champ-row{"  carry-row" if cr<=4 else ""}"><span class="champ-cost-dot {cc}"></span><span class="champ-name">{star}{esc(nm)}</span><span class="champ-cost-label">{co}코</span>{f"<div class=item-row>{itm}</div>" if itm else ""}</div>')
+        tr_rows = [f'<span class="trait-badge style-{t.get("style",1)}">{trait_style_label.get(t.get("style",1),"")} {esc(_trait_name(t.get("key","")))} {t.get("numUnits",0)}</span>' for t in traits]
+        rr = ""
+        vc2 = [c for c in carry_costs if 1 <= c <= 5]
+        if vc2:
+            mc = max(set(vc2), key=vc2.count); o = get_optimal_reroll_level(mc); lv = o["optimal_level"]; inf = o["all_levels"].get(lv, {})
+            rr = f'<div class="reroll-guide">🎰 <strong>리롤:</strong> Lv.{lv}에서 {mc}코 캐리 — 상점 {inf.get("shop_chance_pct",0):.1f}% | 50%: {inf.get("rolls_for_50pct","?")}롤({inf.get("gold_for_50pct","?")}G)</div>'
+        # 운영 가이드 자동 생성 (캐리/탱커를 코스트별로 분류)
+        op_guide = ""
+        if vc2:
+            mc = max(set(vc2), key=vc2.count)
+            carries_high = []
+            carries_low = []
+            tanks_high = []
+            tanks_low = []
+            early_units = []
 
-                    for c in champs:
-                        cr = c.get("coreRank", 99)
-                        k = c.get("key", "")
-                        nm = _champ_name(k)
-                        co = _champ_cost(k)
-                        has_items = bool(c.get("items"))
+            for c in champs:
+                cr = c.get("coreRank", 99)
+                k = c.get("key", "")
+                nm = _champ_name(k)
+                co = _champ_cost(k)
+                has_items = bool(c.get("items"))
 
-                        if cr <= 2:  # 메인 캐리
-                            if co >= 4: carries_high.append(f"{nm}({co}코)")
-                            else: carries_low.append(f"{nm}({co}코)")
-                        elif cr <= 4 and has_items:  # 서브 캐리/탱커
-                            if co >= 4: tanks_high.append(f"{nm}({co}코)")
-                            else: tanks_low.append(f"{nm}({co}코)")
+                if cr <= 2:
+                    if co >= 4: carries_high.append(f"{nm}({co}코)")
+                    else: carries_low.append(f"{nm}({co}코)")
+                elif cr <= 4 and has_items:
+                    if co >= 4: tanks_high.append(f"{nm}({co}코)")
+                    else: tanks_low.append(f"{nm}({co}코)")
 
-                        if co <= 2:
-                            early_units.append(nm)
+                if co <= 2:
+                    early_units.append(nm)
 
-                    carry_all = ", ".join(carries_low + carries_high) if (carries_low or carries_high) else "메인 캐리"
-                    early_str = ", ".join(early_units[:4]) if early_units else "1~2코 유닛"
+            carry_all = ", ".join(carries_low + carries_high) if (carries_low or carries_high) else "메인 캐리"
+            early_str = ", ".join(early_units[:4]) if early_units else "1~2코 유닛"
 
-                    if mc <= 2:  # 1~2코 리롤덱
-                        carry_str = ", ".join(carries_low) if carries_low else carry_all
-                        tank_str = ", ".join(tanks_low) if tanks_low else "저코 탱커"
-                        op_guide = f'''
+            if mc <= 2:
+                carry_str = ", ".join(carries_low) if carries_low else carry_all
+                tank_str = ", ".join(tanks_low) if tanks_low else "저코 탱커"
+                op_guide = f'''
             <div class="op-guide">
               <h4 class="col-title">운영 가이드</h4>
               <div class="op-phase">
@@ -1156,11 +1235,11 @@ def generate_html_report(meta_info, all_stats, watched_stats, decks_raw):
                 </div>
               </div>
             </div>'''
-                    elif mc == 3:  # 3코 슬로우롤
-                        carry_str = ", ".join(carries_low) if carries_low else carry_all
-                        opt = get_optimal_reroll_level(3)
-                        rlvl = opt["optimal_level"]
-                        op_guide = f'''
+            elif mc == 3:
+                carry_str = ", ".join(carries_low) if carries_low else carry_all
+                opt = get_optimal_reroll_level(3)
+                rlvl = opt["optimal_level"]
+                op_guide = f'''
             <div class="op-guide">
               <h4 class="col-title">운영 가이드</h4>
               <div class="op-phase">
@@ -1188,10 +1267,10 @@ def generate_html_report(meta_info, all_stats, watched_stats, decks_raw):
                 </div>
               </div>
             </div>'''
-                    else:  # 4~5코 레벨덱 (패스트 8)
-                        carry_str = ", ".join(carries_high) if carries_high else carry_all
-                        tank_str = ", ".join(tanks_high + tanks_low) if (tanks_high or tanks_low) else "탱커"
-                        op_guide = f'''
+            else:
+                carry_str = ", ".join(carries_high) if carries_high else carry_all
+                tank_str = ", ".join(tanks_high + tanks_low) if (tanks_high or tanks_low) else "탱커"
+                op_guide = f'''
             <div class="op-guide">
               <h4 class="col-title">운영 가이드</h4>
               <div class="op-phase">
@@ -1221,9 +1300,62 @@ def generate_html_report(meta_info, all_stats, watched_stats, decks_raw):
               </div>
             </div>'''
 
-                dk = raw.get("key",""); du = f"https://lolchess.gg/decks/{dk}?hl=ko" if dk else "#"
-                secs.append(f'<div class="guide-card"><div class="guide-header"><span class="guide-title">{esc(label)}</span><a class="deck-link" href="{du}" target="_blank">롤체지지 →</a></div><div class="guide-body"><div class="guide-col"><h4 class="col-title">챔피언 구성</h4><div class="champ-list">{"".join(ch_rows)}</div></div><div class="guide-col"><h4 class="col-title">시너지</h4><div class="trait-list">{"".join(tr_rows)}</div>{rr}</div></div>{op_guide}</div>')
+        dk = raw_deck.get("key", ""); du = f"https://lolchess.gg/decks/{dk}?hl=ko" if dk else "#"
+        return f'<div class="guide-card"><div class="guide-header"><span class="guide-title">{esc(label)}</span><a class="deck-link" href="{du}" target="_blank">롤체지지 →</a></div><div class="guide-body"><div class="guide-col"><h4 class="col-title">챔피언 구성</h4><div class="champ-list">{"".join(ch_rows)}</div></div><div class="guide-col"><h4 class="col-title">시너지</h4><div class="trait-list">{"".join(tr_rows)}</div>{rr}</div></div>{op_guide}</div>'
+
+    def guide_html():
+        secs = []
+        for cat in WATCHED_DECKS:
+            for label, stats in watched_stats.get(cat, {}).items():
+                raw = None
+                for entry in WATCHED_DECKS.get(cat, []):
+                    if entry["label"] == label:
+                        for d in decks_raw:
+                            if deck_matches(d, entry): raw = d; break
+                        break
+                if not raw: continue
+                secs.append(deck_detail_card(raw, label))
         return "\n".join(secs) if secs else '<p class="no-data">없음</p>'
+
+    def recommend_html():
+        cards = []
+        # 현재 최강 덱
+        strongest = find_strongest_deck(decks_raw)
+        if strongest:
+            st = get_deck_stats(strongest)
+            pick_rate = strongest.get("pickRate", 0)
+            header = (
+                f'<div class="deck-stats">'
+                f'<div class="stat-item"><span class="stat-label">픽률</span><span class="stat-val">{pick_rate:.1f}%</span></div>'
+                f'<div class="stat-item"><span class="stat-label">순방률</span><span class="stat-val">{st["top4_rate"]:.1f}%</span></div>'
+                f'<div class="stat-item"><span class="stat-label">평균등수</span><span class="stat-val">{st["avg_placement"]:.2f}</span></div>'
+                f'<div class="stat-item"><span class="stat-label">판수</span><span class="stat-val">{st["play_count"]:,}</span></div>'
+                f'</div>'
+            )
+            card_html = deck_detail_card(strongest, f'🏆 현재 최강 덱 — {esc(st["name"])}')
+            # 헤더를 guide-header 뒤에 삽입
+            insert_pos = card_html.find('</div>', card_html.find('guide-header')) + len('</div>')
+            card_html = card_html[:insert_pos] + header + card_html[insert_pos:]
+            cards.append(card_html)
+        # 숨은 강자
+        hidden = find_hidden_op_deck(decks_raw)
+        if hidden:
+            ht = get_deck_stats(hidden)
+            pick_rate = hidden.get("pickRate", 0)
+            header = (
+                f'<div class="deck-stats">'
+                f'<div class="stat-item"><span class="stat-label">픽률</span><span class="stat-val">{pick_rate:.1f}%</span></div>'
+                f'<div class="stat-item"><span class="stat-label">순방률</span><span class="stat-val">{ht["top4_rate"]:.1f}%</span></div>'
+                f'<div class="stat-item"><span class="stat-label">평균등수</span><span class="stat-val">{ht["avg_placement"]:.2f}</span></div>'
+                f'<div class="stat-item"><span class="stat-label">판수</span><span class="stat-val">{ht["play_count"]:,}</span></div>'
+                f'</div>'
+                f'<div class="reroll-guide" style="margin:0 14px 8px">픽률 낮아서 안 겹치고 성적 좋은 덱</div>'
+            )
+            card_html = deck_detail_card(hidden, f'💎 숨은 강자 — {esc(ht["name"])}')
+            insert_pos = card_html.find('</div>', card_html.find('guide-header')) + len('</div>')
+            card_html = card_html[:insert_pos] + header + card_html[insert_pos:]
+            cards.append(card_html)
+        return "\n".join(cards) if cards else '<p class="no-data">추천 덱 없음</p>'
 
     def top5_fn():
         by = sorted(all_stats, key=lambda x:x["top4_rate"], reverse=True); medals=["🥇","🥈","🥉","4️⃣","5️⃣"]
@@ -1243,6 +1375,7 @@ def generate_html_report(meta_info, all_stats, watched_stats, decks_raw):
 <header class="site-header"><h1>🎮 TFT 메타 대시보드</h1><div class="header-meta"><span class="header-chip">패치 <strong>{patch}</strong></span><span class="header-chip">업데이트 <strong>{updated_at}</strong></span><span class="header-chip">분석 덱 <strong>{total_decks}개</strong></span></div></header>
 <main class="container">
 <section class="section"><h2 class="section-title">🎯 내 덱 현황</h2><div class="cards-grid">{watched_html()}</div></section>
+<section class="section"><h2 class="section-title">🔥 추천 덱</h2>{recommend_html()}</section>
 <section class="section"><h2 class="section-title">📖 덱 상세 가이드</h2>{guide_html()}</section>
 <section class="section"><h2 class="section-title">🏆 순방률 TOP 5</h2><div class="top5-list">{top5_fn()}</div></section>
 <section class="section"><h2 class="section-title">🎰 리롤 확률 가이드</h2><div class="reroll-table-wrap"><table><thead><tr><th>코스트</th><th>최적 레벨</th><th>상점 확률</th><th>50% 달성</th><th>80% 달성</th></tr></thead><tbody>{reroll_fn()}</tbody></table></div></section>
