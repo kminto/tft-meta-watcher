@@ -1,6 +1,8 @@
 name: TFT Meta Watcher
 
 on:
+  push:
+    branches: [master]
   schedule:
     - cron: '*/30 * * * *'
   workflow_dispatch:
