@@ -35,7 +35,7 @@ intents = discord.Intents.default()
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
-CATEGORY_NAMES = {"main": "메인덱", "ad_alt": "AD 대체덱", "special": "특수 상황덱"}
+CATEGORY_NAMES = {"main": "메인덱", "ad_alt": "AD 대체덱", "ap_alt": "AP 대체덱", "special": "특수 상황덱"}
 DASHBOARD_URL = "https://kminto.github.io/tft-meta-watcher/"
 
 
@@ -108,6 +108,27 @@ async def change_ad(interaction: discord.Interaction, 특성: str, 대표챔프:
     await interaction.response.send_message(embed=embed)
 
 
+# ── /AP덱변경 ─────────────────────────────────────────────────────────────────
+
+@tree.command(name="ap덱변경", description="AP 대체덱을 변경합니다")
+@app_commands.describe(
+    특성="덱의 핵심 특성 (예: 개화)",
+    대표챔프="메인 캐리 챔프 이름 (예: 아리)",
+)
+async def change_ap(interaction: discord.Interaction, 특성: str, 대표챔프: str):
+    config = load_config()
+    label = f"{특성} {대표챔프}"
+    config["watched_decks"]["ap_alt"] = [{"keywords": [특성, 대표챔프], "label": label}]
+    save_config(config)
+
+    embed = discord.Embed(
+        title="✅ AP 대체덱 변경 완료",
+        description=f"**{label}**\n특성: {특성} | 대표챔프: {대표챔프}\n\n기존 AP덱이 모두 교체됐어요.",
+        color=0x00C853,
+    )
+    await interaction.response.send_message(embed=embed)
+
+
 # ── /특수덱변경 ───────────────────────────────────────────────────────────────
 
 @tree.command(name="특수덱변경", description="특수 상황덱을 변경합니다")
@@ -140,6 +161,7 @@ async def change_special(interaction: discord.Interaction, 특성: str, 대표�
 @app_commands.choices(카테고리=[
     app_commands.Choice(name="메인덱", value="main"),
     app_commands.Choice(name="AD 대체덱", value="ad_alt"),
+    app_commands.Choice(name="AP 대체덱", value="ap_alt"),
     app_commands.Choice(name="특수 상황덱", value="special"),
 ])
 async def add_deck(interaction: discord.Interaction, 카테고리: app_commands.Choice[str],
