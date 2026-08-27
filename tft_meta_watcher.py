@@ -805,88 +805,60 @@ def analyze_changes(current_data: dict, prev_state: dict) -> list[dict]:
 # ── 추천 덱 알고리즘 ──────────────────────────────────────────────────────────
 
 def find_strongest_deck(decks_raw: list[dict]) -> dict | None:
-    """현재 가장 강한 덱을 찾는다.
-    점수 = (순방률 × 0.4) + ((10 - 평균등수) × 10 × 0.3) + (표본 점수 × 0.3)
-    표본이 충분하고 순방률/등수 모두 좋은 덱이 1위.
-    """
+    """모두가 인정하는 1위 덱. 표본 5000판 이상 중 순방률 1위."""
     if not decks_raw:
         return None
-
-    best = None
-    best_score = -1
-
-    for d in decks_raw:
-        stats = get_deck_stats(d)
-        top4 = stats["top4_rate"]
-        avg = stats["avg_placement"]
-        plays = stats["play_count"]
-
-        if plays < 1000 or avg <= 0:
-            continue
-
-        # 표본 점수 (10000판 이상이면 만점, 로그 스케일)
-        import math
-        sample_score = min(100, math.log10(max(1, plays)) * 25)
-
-        score = (top4 * 0.4) + ((10 - avg) * 10 * 0.3) + (sample_score * 0.3)
-
-        if score > best_score:
-            best_score = score
-            best = d
-
-    return best
-
-
-def find_hidden_op_deck(decks_raw: list[dict]) -> dict | None:
-    """픽률 낮지만 성적 좋은 숨겨진 OP 덱을 찾는다.
-    조건: 픽률 1% 이하, 순방률 58%+, 표본 2000+, 평균등수 4.0 이하
-    점수 = 순방률 × (1 - 픽률/5) — 픽률 낮을수록 보너스
-    """
-    if not decks_raw:
-        return None
-
     candidates = []
-
     for d in decks_raw:
         stats = get_deck_stats(d)
-        top4 = stats["top4_rate"]
-        avg = stats["avg_placement"]
-        plays = stats["play_count"]
-        pick = d.get("pickRate", 0)
-
-        if plays < 2000 or avg > 4.0 or avg <= 0:
-            continue
-        if top4 < 58:
-            continue
-        if pick > 1.0:
-            continue
-
-        # 픽률 낮을수록 보너스
-        score = top4 * (1 - pick / 5)
-        candidates.append((score, d))
-
+        if stats["play_count"] >= 5000 and stats["avg_placement"] > 0:
+            candidates.append((stats["top4_rate"], d))
     if not candidates:
-        # 조건 완화: 순방률 55%+, 픽률 2% 이하
         for d in decks_raw:
             stats = get_deck_stats(d)
-            top4 = stats["top4_rate"]
-            avg = stats["avg_placement"]
-            plays = stats["play_count"]
-            pick = d.get("pickRate", 0)
-
-            if plays < 1500 or avg > 4.1 or avg <= 0:
-                continue
-            if top4 < 55:
-                continue
-            if pick > 2.0:
-                continue
-
-            score = top4 * (1 - pick / 5)
-            candidates.append((score, d))
-
+            if stats["play_count"] >= 1000 and stats["avg_placement"] > 0:
+                candidates.append((stats["top4_rate"], d))
     if not candidates:
         return None
+    candidates.sort(key=lambda x: x[0], reverse=True)
+    return candidates[0][1]
 
+
+def find_hidden_op_deck(decks_raw: list[dict], strongest: dict = None) -> dict | None:
+    """남들이 안 쓰는데 4등 안에 꾸준히 드는 덱.
+    핵심: 평균등수 4.0 이하(= 매판 4등 안) + 픽률 낮음(= 안 겹힘) + 표본 충분.
+    최강 덱과 다른 덱을 추천."""
+    if not decks_raw:
+        return None
+    strongest_key = strongest.get("key", "") if strongest else ""
+    candidates = []
+    for d in decks_raw:
+        if d.get("key", "") == strongest_key:
+            continue
+        stats = get_deck_stats(d)
+        pick = d.get("pickRate", 0)
+        if stats["play_count"] < 2000 or stats["avg_placement"] > 4.0 or stats["avg_placement"] <= 0:
+            continue
+        if pick > 2.0:
+            continue
+        # 점수: 평균등수 좋을수록 + 픽률 낮을수록
+        score = (10 - stats["avg_placement"]) * 10 + stats["top4_rate"] * 0.5 - pick * 20
+        candidates.append((score, d))
+    if not candidates:
+        # 조건 완화
+        for d in decks_raw:
+            if d.get("key", "") == strongest_key:
+                continue
+            stats = get_deck_stats(d)
+            pick = d.get("pickRate", 0)
+            if stats["play_count"] < 1000 or stats["avg_placement"] > 4.2 or stats["avg_placement"] <= 0:
+                continue
+            if pick > 3.0:
+                continue
+            score = (10 - stats["avg_placement"]) * 10 + stats["top4_rate"] * 0.5 - pick * 20
+            candidates.append((score, d))
+    if not candidates:
+        return None
     candidates.sort(key=lambda x: x[0], reverse=True)
     return candidates[0][1]
 
@@ -1338,7 +1310,7 @@ def generate_html_report(meta_info, all_stats, watched_stats, decks_raw):
             card_html = card_html[:insert_pos] + header + card_html[insert_pos:]
             cards.append(card_html)
         # 숨은 강자
-        hidden = find_hidden_op_deck(decks_raw)
+        hidden = find_hidden_op_deck(decks_raw, strongest)
         if hidden:
             ht = get_deck_stats(hidden)
             pick_rate = hidden.get("pickRate", 0)
