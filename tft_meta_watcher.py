@@ -1152,7 +1152,10 @@ def generate_html_report(meta_info, all_stats, watched_stats, decks_raw):
         ch_rows = []; carry_costs = []
         for c in champs:
             k = c.get("key", ""); nm = _champ_name(k); co = _champ_cost(k); cc = cost_class.get(co, "cost-1"); cr = c.get("coreRank", 99); items = c.get("items", [])
-            if cr <= 4: carry_costs.append(co)
+            if co == 0:
+                continue  # 소환수/몬스터는 표시하지 않음
+            if cr <= 4 and 1 <= co <= 5:
+                carry_costs.append(co)
             star = "⭐ " if cr <= 2 else ""
             itm = "".join(f'<span class="item-badge">{esc(_item_name(i))}</span>' for i in items) if items else ""
             ch_rows.append(f'<div class="champ-row{"  carry-row" if cr<=4 else ""}"><span class="champ-cost-dot {cc}"></span><span class="champ-name">{star}{esc(nm)}</span><span class="champ-cost-label">{co}코</span>{f"<div class=item-row>{itm}</div>" if itm else ""}</div>')
