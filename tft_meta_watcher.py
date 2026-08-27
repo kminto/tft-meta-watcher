@@ -1176,70 +1176,71 @@ def generate_html_report(meta_info, all_stats, watched_stats, decks_raw):
             else:
                 late_champs.append(row)
 
-        # 초반/중반/후반 섹션 조합
-        ch_sections = ""
-        early_count = len([p for p in all_parsed if p["cost"] <= 2])
-        mid_count = len([p for p in all_parsed if p["cost"] == 3])
+        # 초반/중반/후반 각각 완성된 보드를 보여줌
+        def make_row(p):
+            cc2 = cost_class.get(p["cost"], "cost-1")
+            star = "⭐ " if p["coreRank"] <= 2 else ""
+            itm = "".join(f'<span class="item-badge">{esc(_item_name(i))}</span>' for i in p["items"]) if p["items"] else ""
+            return f'<div class="champ-row{"  carry-row" if p["coreRank"]<=4 and p["items"] else ""}"><span class="champ-cost-dot {cc2}"></span><span class="champ-name">{star}{esc(p["name"])}</span><span class="champ-cost-label">{p["cost"]}코</span>{f"<div class=item-row>{itm}</div>" if itm else ""}</div>'
 
-        # 초반: 저코 유닛 + 중반 캐리 중 뜨면 바로 넣을 챔프 + 빈 칸 안내
-        if early_champs or mid_champs:
-            # 초반 레벨 4~5 기준 보드 = 4~5칸
-            # 저코 유닛 먼저 넣고, 3코 캐리도 뜨면 바로 넣기
-            early_section = '<div class="phase-label">🟢 초반 보드 (레벨 4~5 / 1~3스테이지)</div>'
-            early_section += '<div class="champ-list">'
-            early_section += "".join(early_champs)
-            # 3코 캐리 중 메인 캐리는 초반에도 뜨면 바로 투입
-            early_carries = [p for p in all_parsed if p["cost"] == 3 and p["coreRank"] <= 2]
-            for ec in early_carries:
-                cc2 = cost_class.get(ec["cost"], "cost-3")
-                itm2 = "".join(f'<span class="item-badge">{esc(_item_name(i))}</span>' for i in ec["items"]) if ec["items"] else ""
-                early_section += f'<div class="champ-row carry-row"><span class="champ-cost-dot {cc2}"></span><span class="champ-name">⭐ {esc(ec["name"])}</span><span class="champ-cost-label">{ec["cost"]}코 — 뜨면 바로 넣기</span>{f"<div class=item-row>{itm2}</div>" if itm2 else ""}</div>'
-            early_section += '</div>'
-            # 빈 칸 안내
-            total_early = early_count + len(early_carries)
-            if total_early < 5:
-                remaining = 5 - total_early
-                early_section += f'<div class="swap-info">💡 나머지 {remaining}칸은 2성 된 아무 1~2코 유닛으로 채우기 (시너지 맞으면 더 좋음)</div>'
-            ch_sections += early_section
+        low = [p for p in all_parsed if p["cost"] <= 2]    # 1~2코
+        mid = [p for p in all_parsed if p["cost"] == 3]    # 3코
+        high = [p for p in all_parsed if p["cost"] >= 4]   # 4~5코
 
-        # 중반: 리롤 대상 + 슬롯 정리
-        if mid_champs:
-            # 초반에 이미 보여준 캐리는 제외
-            mid_only = []
-            early_carry_names = {p["name"] for p in all_parsed if p["cost"] == 3 and p["coreRank"] <= 2}
-            for c in champs:
-                k = c.get("key",""); nm = _champ_name(k); co = _champ_cost(k)
-                if co == 3 and nm not in early_carry_names:
-                    cc2 = cost_class.get(co, "cost-3"); cr = c.get("coreRank", 99); items = c.get("items", [])
-                    star = "⭐ " if cr <= 2 else ""
-                    itm2 = "".join(f'<span class="item-badge">{esc(_item_name(i))}</span>' for i in items) if items else ""
-                    mid_only.append(f'<div class="champ-row{"  carry-row" if cr<=4 and items else ""}"><span class="champ-cost-dot {cc2}"></span><span class="champ-name">{star}{esc(nm)}</span><span class="champ-cost-label">{co}코</span>{f"<div class=item-row>{itm2}</div>" if itm2 else ""}</div>')
-            if mid_only:
-                ch_sections += f'<div class="phase-label">🟡 중반 투입 (3코 / 레벨 6~7)</div><div class="champ-list">{"".join(mid_only)}</div>'
-                ch_sections += f'<div class="swap-info">💡 초반에 빈 칸 채운 임시 유닛을 빼고 이 챔프들로 교체</div>'
-            elif mid_champs:
-                ch_sections += f'<div class="phase-label">🟡 중반 투입 (3코 / 레벨 6~7)</div>'
-                ch_sections += f'<div class="swap-info">💡 위 캐리 2성 만들기 + 임시 유닛 빼고 시너지 맞추기</div>'
+        # ── 초반 보드 (레벨 4~5, 5칸) ──
+        # 1~2코 전부 + 3코 캐리(뜨면 바로 넣기)
+        early_board = list(low)
+        early_3ko = [p for p in mid if p["coreRank"] <= 2]
+        early_board += early_3ko
+        # 5칸 못 채우면 안내
+        early_rows = "".join(make_row(p) for p in early_board)
+        fill_note = ""
+        if len(early_board) < 5:
+            fill_note = f'<div class="swap-info">💡 나머지 {5 - len(early_board)}칸 → 2성 된 아무 1~2코 유닛으로 채우기</div>'
+        early_html = f'<div class="phase-label">🟢 초반 보드 ({len(early_board)}칸 / 레벨 4~5)</div><div class="champ-list">{early_rows}</div>{fill_note}'
 
-        # 후반: 4~5코 교체
-        if late_champs:
-            lows = [p for p in all_parsed if p["cost"] <= 2]
-            highs = [p for p in all_parsed if p["cost"] >= 4]
-            swap_lines = []
-            used = set()
-            for lo in lows:
-                for hi in highs:
-                    if hi["name"] not in used:
-                        swap_lines.append(f'{esc(lo["name"])}({lo["cost"]}코) → <strong>{esc(hi["name"])}({hi["cost"]}코)</strong>')
-                        used.add(hi["name"])
-                        break
-            swap_html = ""
-            if swap_lines:
-                swap_html = f'<div class="swap-info">🔄 교체: {"  |  ".join(swap_lines)}</div>'
-            ch_sections += f'<div class="phase-label">🔴 후반 교체 (4~5코 / 레벨 8~9)</div><div class="champ-list">{"".join(late_champs)}</div>{swap_html}'
-            ch_sections += f'<div class="swap-info">💡 아이템은 팔린 유닛에서 자동 회수 → 새 유닛한테 장착</div>'
+        # ── 중반 보드 (레벨 6~7, 6~7칸) ──
+        # 1~2코 + 3코 전부
+        mid_board = list(low) + list(mid)
+        mid_rows = "".join(make_row(p) for p in mid_board)
+        # 초반 대비 추가된 유닛
+        mid_new = [p for p in mid if p not in early_3ko]
+        mid_added = ", ".join(f'{p["name"]}({p["cost"]}코)' for p in mid_new) if mid_new else ""
+        mid_note = f'<div class="swap-info">💡 초반 임시 유닛 빼고 → {mid_added} 넣기</div>' if mid_added else ""
+        mid_html = f'<div class="phase-label">🟡 중반 보드 ({len(mid_board)}칸 / 레벨 6~7)</div><div class="champ-list">{mid_rows}</div>{mid_note}'
 
-        if not ch_sections:
+        # ── 후반 최종 보드 (레벨 8~9, 8칸+) ──
+        # 전체 유닛 = 최종 완성형
+        late_board = list(low) + list(mid) + list(high)
+        late_rows = "".join(make_row(p) for p in late_board)
+        # 교체 라인: 저코 빠지고 고코 들어오는 것
+        swap_lines = []
+        used = set()
+        for lo in low:
+            for hi in high:
+                if hi["name"] not in used:
+                    swap_lines.append(f'{esc(lo["name"])}({lo["cost"]}코) → <strong>{esc(hi["name"])}({hi["cost"]}코)</strong>')
+                    used.add(hi["name"])
+                    break
+        # 교체 안 된 고코 (추가 투입)
+        added_high = [p for p in high if p["name"] not in used]
+        for ah in added_high:
+            swap_lines.append(f'빈 칸 → <strong>{esc(ah["name"])}({ah["cost"]}코)</strong>')
+
+        swap_html = f'<div class="swap-info">🔄 {"  |  ".join(swap_lines)}</div>' if swap_lines else ""
+        item_note = '<div class="swap-info">💡 아이템: 임시로 들고 있던 저코 유닛 팔면 아이템 회수 → 4~5코 캐리한테 장착</div>' if high else ""
+
+        # 최종 보드는 교체 후의 모습 (저코 빠진 후)
+        final_units = list(mid) + list(high)
+        # 교체 안 되고 남는 저코 (고코보다 저코가 많으면)
+        remaining_low = low[len([h for h in high if h["name"] in used]):]
+        final_units = remaining_low + list(mid) + list(high)
+        final_rows = "".join(make_row(p) for p in final_units)
+
+        late_html = f'<div class="phase-label">🔴 후반 최종 보드 ({len(final_units)}칸 / 레벨 8~9)</div><div class="champ-list">{final_rows}</div>{swap_html}{item_note}'
+
+        ch_sections = early_html + mid_html + late_html
+        if not all_parsed:
             ch_sections = '<p class="no-data">챔피언 정보 없음</p>'
         tr_rows = [f'<span class="trait-badge style-{t.get("style",1)}">{trait_style_label.get(t.get("style",1),"")} {esc(_trait_name(t.get("key","")))} {t.get("numUnits",0)}</span>' for t in traits]
         rr = ""
