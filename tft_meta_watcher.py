@@ -1178,12 +1178,51 @@ def generate_html_report(meta_info, all_stats, watched_stats, decks_raw):
 
         # 초반/중반/후반 섹션 조합
         ch_sections = ""
-        if early_champs:
-            ch_sections += f'<div class="phase-label">초반 보드 (1~2코)</div><div class="champ-list">{"".join(early_champs)}</div>'
+        early_count = len([p for p in all_parsed if p["cost"] <= 2])
+        mid_count = len([p for p in all_parsed if p["cost"] == 3])
+
+        # 초반: 저코 유닛 + 중반 캐리 중 뜨면 바로 넣을 챔프 + 빈 칸 안내
+        if early_champs or mid_champs:
+            # 초반 레벨 4~5 기준 보드 = 4~5칸
+            # 저코 유닛 먼저 넣고, 3코 캐리도 뜨면 바로 넣기
+            early_section = '<div class="phase-label">🟢 초반 보드 (레벨 4~5 / 1~3스테이지)</div>'
+            early_section += '<div class="champ-list">'
+            early_section += "".join(early_champs)
+            # 3코 캐리 중 메인 캐리는 초반에도 뜨면 바로 투입
+            early_carries = [p for p in all_parsed if p["cost"] == 3 and p["coreRank"] <= 2]
+            for ec in early_carries:
+                cc2 = cost_class.get(ec["cost"], "cost-3")
+                itm2 = "".join(f'<span class="item-badge">{esc(_item_name(i))}</span>' for i in ec["items"]) if ec["items"] else ""
+                early_section += f'<div class="champ-row carry-row"><span class="champ-cost-dot {cc2}"></span><span class="champ-name">⭐ {esc(ec["name"])}</span><span class="champ-cost-label">{ec["cost"]}코 — 뜨면 바로 넣기</span>{f"<div class=item-row>{itm2}</div>" if itm2 else ""}</div>'
+            early_section += '</div>'
+            # 빈 칸 안내
+            total_early = early_count + len(early_carries)
+            if total_early < 5:
+                remaining = 5 - total_early
+                early_section += f'<div class="swap-info">💡 나머지 {remaining}칸은 2성 된 아무 1~2코 유닛으로 채우기 (시너지 맞으면 더 좋음)</div>'
+            ch_sections += early_section
+
+        # 중반: 리롤 대상 + 슬롯 정리
         if mid_champs:
-            ch_sections += f'<div class="phase-label">중반 투입 (3코)</div><div class="champ-list">{"".join(mid_champs)}</div>'
+            # 초반에 이미 보여준 캐리는 제외
+            mid_only = []
+            early_carry_names = {p["name"] for p in all_parsed if p["cost"] == 3 and p["coreRank"] <= 2}
+            for c in champs:
+                k = c.get("key",""); nm = _champ_name(k); co = _champ_cost(k)
+                if co == 3 and nm not in early_carry_names:
+                    cc2 = cost_class.get(co, "cost-3"); cr = c.get("coreRank", 99); items = c.get("items", [])
+                    star = "⭐ " if cr <= 2 else ""
+                    itm2 = "".join(f'<span class="item-badge">{esc(_item_name(i))}</span>' for i in items) if items else ""
+                    mid_only.append(f'<div class="champ-row{"  carry-row" if cr<=4 and items else ""}"><span class="champ-cost-dot {cc2}"></span><span class="champ-name">{star}{esc(nm)}</span><span class="champ-cost-label">{co}코</span>{f"<div class=item-row>{itm2}</div>" if itm2 else ""}</div>')
+            if mid_only:
+                ch_sections += f'<div class="phase-label">🟡 중반 투입 (3코 / 레벨 6~7)</div><div class="champ-list">{"".join(mid_only)}</div>'
+                ch_sections += f'<div class="swap-info">💡 초반에 빈 칸 채운 임시 유닛을 빼고 이 챔프들로 교체</div>'
+            elif mid_champs:
+                ch_sections += f'<div class="phase-label">🟡 중반 투입 (3코 / 레벨 6~7)</div>'
+                ch_sections += f'<div class="swap-info">💡 위 캐리 2성 만들기 + 임시 유닛 빼고 시너지 맞추기</div>'
+
+        # 후반: 4~5코 교체
         if late_champs:
-            # 교체 라인 생성
             lows = [p for p in all_parsed if p["cost"] <= 2]
             highs = [p for p in all_parsed if p["cost"] >= 4]
             swap_lines = []
@@ -1196,8 +1235,9 @@ def generate_html_report(meta_info, all_stats, watched_stats, decks_raw):
                         break
             swap_html = ""
             if swap_lines:
-                swap_html = f'<div class="swap-info">교체: {"  |  ".join(swap_lines)}</div>'
-            ch_sections += f'<div class="phase-label">후반 교체 (4~5코)</div><div class="champ-list">{"".join(late_champs)}</div>{swap_html}'
+                swap_html = f'<div class="swap-info">🔄 교체: {"  |  ".join(swap_lines)}</div>'
+            ch_sections += f'<div class="phase-label">🔴 후반 교체 (4~5코 / 레벨 8~9)</div><div class="champ-list">{"".join(late_champs)}</div>{swap_html}'
+            ch_sections += f'<div class="swap-info">💡 아이템은 팔린 유닛에서 자동 회수 → 새 유닛한테 장착</div>'
 
         if not ch_sections:
             ch_sections = '<p class="no-data">챔피언 정보 없음</p>'
