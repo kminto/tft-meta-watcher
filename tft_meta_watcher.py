@@ -865,31 +865,38 @@ def find_hidden_op_deck(decks_raw: list[dict], strongest: dict = None) -> dict |
 
 # ── 덱 상세 임베드 ───────────────────────────────────────────────────────────
 
-# 챔프 영문 → 한글 폴백 매핑 (커뮤니티 드래곤에 없는 챔프용)
+# 챔프 영문 → (한글, 코스트) 폴백 매핑 (커뮤니티 드래곤에 없는 챔프용)
 _CHAMP_KO_FALLBACK = {
-    "Ahri": "아리", "Alistar": "알리스타", "Alune": "알룬", "Amumu": "아무무",
-    "Aphelios": "아펠리오스", "Ashe": "애쉬", "Azir": "아지르",
-    "Caitlyn": "케이틀린", "Cassiopeia": "카시오페아",
-    "Diana": "다이애나", "Draven": "드레이븐",
-    "ElderDragon": "장로 드래곤", "Elder Dragon": "장로 드래곤",
-    "Elise": "엘리스", "Ezreal": "이즈리얼",
-    "Fiddlesticks": "피들스틱", "GnarSmall": "꼬마 나르", "Gnar Small": "꼬마 나르",
-    "Hecarim": "헤카림", "Ivern": "아이번",
-    "Karma": "카르마", "Kayle": "케일", "Kennen": "케넨",
-    "Kobuko": "코부코", "KogMaw": "코그모",
-    "LeBlanc": "르블랑", "Le Blanc": "르블랑", "Leona": "레오나", "Lillia": "릴리아",
-    "Malphite": "말파이트", "Maokai": "마오카이", "MasterYi": "마스터 이",
-    "Morgana": "모르가나", "Nidalee": "니달리",
-    "Ornn": "오른", "Rakan": "라칸", "Rammus": "람머스",
-    "RekSai": "렉사이", "Rengar": "렝가",
-    "Sejuani": "세주아니", "Sentry": "파수꾼", "Sentinel": "감시자",
-    "Sett": "세트", "Shen": "쉔", "Sivir": "시비르", "Soraka": "소라카",
-    "Taric": "타릭", "Teemo": "티모", "Tristana": "트리스타나",
-    "Varus": "바루스", "Veigar": "베이가", "Vi": "바이",
-    "Warwick": "워윅", "Xayah": "자야", "Yorick": "요릭",
-    "Yunara": "유나라", "Zyra": "자이라",
-    "Brambleback": "덤불등", "CrimsonRaptor": "진홍 칼부리", "Gromp": "두꺼비",
-    "Krug": "돌거북", "Murkwolf": "큰 늑대", "Scuttlecrab": "바위게",
+    # 1코스트
+    "Elise": ("엘리스", 1), "Kennen": ("케넨", 1), "Leona": ("레오나", 1),
+    "Lillia": ("릴리아", 1), "Soraka": ("소라카", 1), "Teemo": ("티모", 1),
+    "Warwick": ("워윅", 1), "Zyra": ("자이라", 1), "Kobuko": ("코부코", 1),
+    # 2코스트
+    "Cassiopeia": ("카시오페아", 2), "Ashe": ("애쉬", 2),
+    "Maokai": ("마오카이", 2), "Sett": ("세트", 2), "Sivir": ("시비르", 2),
+    "Tristana": ("트리스타나", 2), "Veigar": ("베이가", 2), "Rakan": ("라칸", 2),
+    "Shen": ("쉔", 2), "Sejuani": ("세주아니", 2), "GnarSmall": ("꼬마 나르", 2),
+    "Gnar Small": ("꼬마 나르", 2),
+    # 3코스트
+    "Ahri": ("아리", 3), "Caitlyn": ("케이틀린", 3), "Diana": ("다이애나", 3),
+    "Draven": ("드레이븐", 3), "Ezreal": ("이즈리얼", 3), "Hecarim": ("헤카림", 3),
+    "Ivern": ("아이번", 3), "Karma": ("카르마", 3), "Morgana": ("모르가나", 3),
+    "Rammus": ("람머스", 3), "RekSai": ("렉사이", 3), "Rengar": ("렝가", 3),
+    "Varus": ("바루스", 3), "Yunara": ("유나라", 3),
+    # 4코스트
+    "Alistar": ("알리스타", 4), "Aphelios": ("아펠리오스", 4), "Azir": ("아지르", 4),
+    "Kayle": ("케일", 4), "LeBlanc": ("르블랑", 4), "Le Blanc": ("르블랑", 4),
+    "Malphite": ("말파이트", 4), "Ornn": ("오른", 4), "Taric": ("타릭", 4),
+    "Xayah": ("자야", 4), "Yorick": ("요릭", 4),
+    # 5코스트
+    "Alune": ("알룬", 5), "Amumu": ("아무무", 5), "Fiddlesticks": ("피들스틱", 5),
+    "MasterYi": ("마스터 이", 5), "Nidalee": ("니달리", 5), "Vi": ("바이", 5),
+    "ElderDragon": ("장로 드래곤", 5), "Elder Dragon": ("장로 드래곤", 5),
+    # 특수
+    "KogMaw": ("코그모", 3), "Sentinel": ("감시자", 1), "Sentry": ("파수꾼", 1),
+    "Brambleback": ("덤불등", 0), "CrimsonRaptor": ("진홍 칼부리", 0),
+    "Gromp": ("두꺼비", 0), "Krug": ("돌거북", 0), "Murkwolf": ("큰 늑대", 0),
+    "Scuttlecrab": ("바위게", 0),
 }
 
 
@@ -918,12 +925,13 @@ def _champ_name(key: str) -> str:
             return name
     # 폴백 매핑
     if norm in _CHAMP_KO_FALLBACK:
-        return _CHAMP_KO_FALLBACK[norm]
+        val = _CHAMP_KO_FALLBACK[norm]
+        return val[0] if isinstance(val, tuple) else val
     # CamelCase 분리 후 폴백
     split_name = re.sub(r'([a-z])([A-Z])', r'\1 \2', norm)
-    for en, ko in _CHAMP_KO_FALLBACK.items():
+    for en, val in _CHAMP_KO_FALLBACK.items():
         if en.lower() == split_name.lower() or en.lower() == norm.lower():
-            return ko
+            return val[0] if isinstance(val, tuple) else val
     return split_name
 
 
@@ -937,6 +945,14 @@ def _champ_cost(key: str) -> int:
         api_norm = _normalize_champ_key(api)
         if api_norm.lower() == norm.lower():
             return cost
+    # 폴백 매핑에서 코스트 가져오기
+    if norm in _CHAMP_KO_FALLBACK:
+        val = _CHAMP_KO_FALLBACK[norm]
+        return val[1] if isinstance(val, tuple) else 0
+    split_name = re.sub(r'([a-z])([A-Z])', r'\1 \2', norm)
+    for en, val in _CHAMP_KO_FALLBACK.items():
+        if en.lower() == split_name.lower() or en.lower() == norm.lower():
+            return val[1] if isinstance(val, tuple) else 0
     return 0
 
 
