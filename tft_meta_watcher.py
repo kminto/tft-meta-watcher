@@ -1949,8 +1949,8 @@ def main():
     urgent_types = {"patch_change", "hotfix_detected", "patch_today"}
     urgent_alerts = [a for a in alerts if a.get("type") in urgent_types]
 
-    # 일반 알림 → 매일 18시(KST)에 한 번만
-    is_alert_time = (current_hour == ALERT_HOUR_KST and today_str != last_alert_date)
+    # 일반 알림 → 매일 18시(KST) 이후 첫 실행에 한 번
+    is_alert_time = (current_hour >= ALERT_HOUR_KST and today_str != last_alert_date)
 
     embeds = []
 
